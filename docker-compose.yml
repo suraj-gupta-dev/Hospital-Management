@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:latest
+    container_name: postgres
+
+    environment:
+      - POSTGRES_DB=hospital_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+
+    volumes:
+      - hospital_data:/var/lib/postgresql
+
+    ports:
+      - 5433:5432
+
+volumes:
+  hospital_data:
+    name: hospital_data
