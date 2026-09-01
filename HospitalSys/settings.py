@@ -23,7 +23,8 @@ ALLOWED_HOSTS = []
 # Application definition
 
 CREATED_APPS = [
-    "accounts"
+    "accounts",
+    "hospital",
 ]
 
 # THIRD_PARTY_APPS = [

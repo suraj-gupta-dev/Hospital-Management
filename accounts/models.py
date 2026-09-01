@@ -126,9 +126,3 @@ class CashierProfile(BaseModel):
     employee_id = models.CharField(max_length=50, unique=True)
     joining_date = models.DateField(null=True, blank=True)
 
-
-class HospitalAdminProfile(BaseModel):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="hospital_admin_profile")
-    employee_id = models.CharField(max_length=50, unique=True)
-    designation = models.CharField(max_length=100, blank=True)
-    joining_date = models.DateField(null=True, blank=True)
