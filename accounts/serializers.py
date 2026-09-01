@@ -1,5 +1,7 @@
 import re
+from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
+
 from .models import User
 
 
@@ -40,4 +42,42 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data.pop("password2")
         user = User.objects.create_user(**validated_data)
+        return user
+
+class LoginSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True, write_only=True)
+    password = serializers.CharField(required=True, write_only=True, style={"input_type": "password"})
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    old_password = serializers.CharField(required=True, write_only=True)
+    new_password = serializers.CharField(required=True, write_only=True)
+    confirm_new_password = serializers.CharField(required=True, write_only=True)
+
+    def validate_old_password(self, value):
+        user = self.context["request"].user
+        if not user.check_password(value):
+            raise serializers.ValidationError("Current password is incorrect.")
+        return value
+
+    def validate_new_password(self, value):
+        # Validate password strength using Django's validators
+        validate_password(value)
+        return value
+
+    def validate(self, attrs):
+        # Check if new password and confirm password match
+        if attrs["new_password"] != attrs["confirm_new_password"]:
+            raise serializers.ValidationError({"confirm_new_password": "The two password fields did not match."})
+
+        # Check if new password is same as old password
+        if attrs["new_password"] == attrs["old_password"]:
+            raise serializers.ValidationError({"new_password": "New password cannot be the same as your current password."})
+
+        return attrs
+
+    def save(self, **kwargs):
+        user = self.context["request"].user
+        user.set_password(self.validated_data["new_password"])
+        user.save()
         return user
