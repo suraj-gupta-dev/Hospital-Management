@@ -30,11 +30,11 @@ class Hospital(BaseModel):
     name = models.CharField(max_length=255)
     code = models.CharField(max_length=30, unique=True)
     registration_number = models.CharField(max_length=100, unique=True)
-    email = models.EmailField(blank=True)
-    phone_number = models.CharField(max_length=20, blank=True)
-    website = models.URLField(blank=True)
+    email = models.EmailField(blank=True, null=True)
+    phone_number = models.CharField(max_length=20,null=True, blank=True)
+    website = models.URLField(null=True, blank=True)
     logo = models.ImageField(upload_to="hospitals/logos/", null=True, blank=True)
-    description = models.TextField(blank=True)
+    description = models.TextField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
 
     def __str__(self):
