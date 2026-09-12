@@ -3,12 +3,22 @@ from django.contrib.auth import authenticate, login, logout
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.generics import CreateAPIView, GenericAPIView
+from rest_framework.viewsets import ModelViewSet
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 
-from .serializers import UserRegistrationSerializer, LoginSerializer, ChangePasswordSerializer
-from .models import User
 from .permissions import IsAnonymousUser
+from .serializers import (
+    UserRegistrationSerializer, LoginSerializer,
+    ChangePasswordSerializer, UserSerializer,
+    DoctorProfileSerializer, PatientProfileSerializer,
+    NurseProfileSerializer
+)
+from .models import (
+    User,
+    DoctorProfile, PatientProfile,
+    NurseProfile,
+)
 
 
 
@@ -82,3 +92,39 @@ class ChangePasswordAPIView(APIView):
             'status': 'error',
             'errors': serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
+
+
+class UserModelViewSet(ModelViewSet):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    http_method_names = ["get", "put", "patch", "delete"]
+
+
+class BaseProfileModelViewSet(ModelViewSet):
+    queryset = None
+    serializer_class = None
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        if not self.request.user.is_staff:
+            return qs.filter(user=self.request.user)
+        return qs
+
+
+def _make_viewsets(model, serializer):
+    """
+        Build a ViewSet class for `model` using `serializer`.
+
+        The returned class inherits all behavior from BaseProfileViewSet and only
+        sets `queryset` and `serializer_class`. `select_related("user")` is applied
+        here to prevent N+1 queries on list endpoints.
+    """
+    return type(
+        f"{model.__name__}ModelViewSet",
+        (BaseProfileModelViewSet,),
+        {"queryset": model.objects.select_related("user"), "serializer_class": serializer}
+    )
+
+DoctorProfileModelViewSet = _make_viewsets(DoctorProfile, DoctorProfileSerializer)
+PatientProfileModelViewSet = _make_viewsets(PatientProfile, PatientProfileSerializer)

@@ -11,3 +11,10 @@ urlpatterns = [
     path("logout/", views.LogoutAPIView.as_view(), name="logout"),
     path("change-password/", views.ChangePasswordAPIView.as_view(), name="change-password")
 ]
+
+router = DefaultRouter()
+router.register("users", views.UserModelViewSet)
+router.register("doctors", views.DoctorProfileModelViewSet)
+router.register("patients", views.PatientProfileModelViewSet)
+
+urlpatterns += router.urls

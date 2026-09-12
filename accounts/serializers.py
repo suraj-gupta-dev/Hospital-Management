@@ -2,18 +2,30 @@ import re
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
-from .models import User
+from .models import (
+    User,
+    DoctorProfile, PatientProfile,
+    NurseProfile, ReceptionistProfile,
+    PharmacistProfile, LabTechnicianProfile,
+    CashierProfile
+)
 
 
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True, style={"input_type": "password"})
-    password2 = serializers.CharField(write_only=True, required=True, style={"input_type": "password"})
+    confirm_password = serializers.CharField(write_only=True, required=True, style={"input_type": "password"})
 
     class Meta:
         model = User
-        fields = ["email", "first_name", "last_name", "password", "password2"]
+        fields = [
+            "email",
+            "first_name",
+            "last_name",
+            "password",
+            "confirm_password",
+        ]
 
     def validate_username(self, value):
         """Validate username for allowed characters"""
@@ -26,7 +38,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         """Validate password match and additional constraints"""
         # Check password match
-        if attrs['password'] != attrs['password2']:
+        if attrs['password'] != attrs['confirm_password']:
             raise serializers.ValidationError({
                 "password": "Password fields didn't match."
             })
@@ -40,7 +52,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        validated_data.pop("password2")
+        validated_data.pop("confirm_password")
         user = User.objects.create_user(**validated_data)
         return user
 
@@ -81,3 +93,108 @@ class ChangePasswordSerializer(serializers.Serializer):
         user.set_password(self.validated_data["new_password"])
         user.save()
         return user
+
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "email",
+            "phone_number",
+            "username",
+            "role",
+            "first_name",
+            "last_name",
+        ]
+
+
+class DoctorProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DoctorProfile
+        fields = [
+            "id", "date_of_birth", "gender", "profile_picture",
+            "address_line_1", "address_line_2", "city", "state", "country",
+            "postal_code", "emergency_contact_name", "emergency_contact_phone",
+            "created_at", "updated_at", "user", "registration_number",
+            "specialization", "qualification", "experience_years",
+            "consultation_fee", "bio", "is_available",
+        ]
+        read_only_fields = ["id", "profile_picture", "created_at", "updated_at", "user"]
+
+
+class PatientProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PatientProfile
+        fields = [
+            "id", "date_of_birth", "gender", "profile_picture",
+            "address_line_1", "address_line_2", "city", "state", "country",
+            "postal_code", "emergency_contact_name", "emergency_contact_phone",
+            "created_at", "updated_at", "user", "patient_number", "blood_group",
+        ]
+        read_only_fields = ["id", "profile_picture", "created_at", "updated_at", "user"]
+
+
+class NurseProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = NurseProfile
+        fields = [
+            "id", "date_of_birth", "gender", "profile_picture",
+            "address_line_1", "address_line_2", "city", "state", "country",
+            "postal_code", "emergency_contact_name", "emergency_contact_phone",
+            "created_at", "updated_at", "user", "registration_number",
+            "qualification", "experience_years", "nursing_type",
+        ]
+        read_only_fields = ["id", "profile_picture", "created_at", "updated_at", "user"]
+
+
+class ReceptionistProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ReceptionistProfile
+        fields = [
+            "id", "date_of_birth", "gender", "profile_picture",
+            "address_line_1", "address_line_2", "city", "state", "country",
+            "postal_code", "emergency_contact_name", "emergency_contact_phone",
+            "created_at", "updated_at", "user", "employee_id", "qualification",
+            "joining_date",
+        ]
+        read_only_fields = ["id", "profile_picture", "created_at", "updated_at", "user"]
+
+
+class PharmacistProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PharmacistProfile
+        fields = [
+            "id", "date_of_birth", "gender", "profile_picture",
+            "address_line_1", "address_line_2", "city", "state", "country",
+            "postal_code", "emergency_contact_name", "emergency_contact_phone",
+            "created_at", "updated_at", "user", "license_number", "qualification",
+            "experience_years", "joining_date",
+        ]
+        read_only_fields = ["id", "profile_picture", "created_at", "updated_at", "user"]
+
+
+class LabTechnicianProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LabTechnicianProfile
+        fields = [
+            "id", "date_of_birth", "gender", "profile_picture",
+            "address_line_1", "address_line_2", "city", "state", "country",
+            "postal_code", "emergency_contact_name", "emergency_contact_phone",
+            "created_at", "updated_at", "user", "employee_id", "qualification",
+            "specialization", "experience_years", "joining_date",
+        ]
+        read_only_fields = ["id", "profile_picture", "created_at", "updated_at", "user"]
+
+
+class CashierProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CashierProfile
+        fields = [
+            "id", "date_of_birth", "gender", "profile_picture",
+            "address_line_1", "address_line_2", "city", "state", "country",
+            "postal_code", "emergency_contact_name", "emergency_contact_phone",
+            "created_at", "updated_at", "user", "employee_id", "joining_date",
+        ]
+        read_only_fields = ["id", "profile_picture", "created_at", "updated_at", "user"]
+

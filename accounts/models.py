@@ -8,32 +8,6 @@ from .managers import UserManager
 
 
 
-class BaseModel(models.Model):
-    GENDER_CHOICES = [
-            ("M", "Male"),
-            ("F", "Female"),
-            ("O", "Other")
-        ]
-
-    date_of_birth = models.DateField(null=True)
-    gender = models.CharField(choices=GENDER_CHOICES, max_length=1)
-    profile_picture = models.ImageField(upload_to="uploads/images", null=True)
-
-    address_line_1 = models.CharField(max_length=100)
-    address_line_2 = models.CharField(max_length=100)
-    city = models.CharField(max_length=30)
-    state = models.CharField(max_length=30)
-    country = models.CharField(max_length=30)
-    postal_code = models.IntegerField(validators=[MinValueValidator(6), MaxValueValidator(6)])
-
-    emergency_contact_name = models.CharField(max_length=10)
-    emergency_contact_phone = models.CharField(max_length=50)
-    created_at = models.DateTimeField(auto_now=True)
-    updated_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        abstract = True
-
 
 class UserRoleChoices(models.TextChoices):
     HOSPITAL_ADMIN = "Hospita Admin"
@@ -44,7 +18,6 @@ class UserRoleChoices(models.TextChoices):
     PHARMACIST = "Pharmacist"
     CASHIER = "Cashier"
     PATIENT = "Patient"
-
 
 
 class User(AbstractBaseUser, PermissionsMixin):
@@ -73,6 +46,36 @@ class User(AbstractBaseUser, PermissionsMixin):
     def __str__(self):
         return self.email
 
+    
+
+"""------PROFILE MODELS FOR DIFFERENT ROLE-----"""
+
+class BaseModel(models.Model):
+    GENDER_CHOICES = [
+            ("M", "Male"),
+            ("F", "Female"),
+            ("O", "Other")
+        ]
+
+    date_of_birth = models.DateField(null=True)
+    gender = models.CharField(choices=GENDER_CHOICES, max_length=1)
+    profile_picture = models.ImageField(upload_to="uploads/images", null=True)
+
+    address_line_1 = models.CharField(max_length=100)
+    address_line_2 = models.CharField(max_length=100)
+    city = models.CharField(max_length=30)
+    state = models.CharField(max_length=30)
+    country = models.CharField(max_length=30)
+    postal_code = models.IntegerField(validators=[MinValueValidator(6), MaxValueValidator(6)])
+
+    emergency_contact_name = models.CharField(max_length=10)
+    emergency_contact_phone = models.CharField(max_length=50)
+    created_at = models.DateTimeField(auto_now=True)
+    updated_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        abstract = True
+
 
 class DoctorProfile(BaseModel):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
@@ -97,7 +100,6 @@ class PatientProfile(BaseModel):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="patient_profile")
     patient_number = models.CharField(max_length=50, unique=True)
     blood_group = models.CharField(max_length=5, blank=True)
-    address = models.TextField(blank=True)
 
 
 class ReceptionistProfile(BaseModel):
