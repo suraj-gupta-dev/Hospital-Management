@@ -1,23 +1,31 @@
 from django.contrib.auth import authenticate, login, logout
+from django.shortcuts import get_object_or_404
 
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.generics import CreateAPIView, GenericAPIView
 from rest_framework.viewsets import ModelViewSet
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
+from rest_framework.decorators import action
 
-from .permissions import IsAnonymousUser
+from .permissions import (
+    IsAnonymousUser, PatientAccessPermission,
+    IsDoctorRecepOrAdmin, IsOwnerOnly,
+    IsDocRecepNurseOrAdmin
+)
+
 from .serializers import (
     UserRegistrationSerializer, LoginSerializer,
     ChangePasswordSerializer, UserSerializer,
     DoctorProfileSerializer, PatientProfileSerializer,
-    NurseProfileSerializer
+    NurseProfileSerializer, ReceptionistProfileSerializer,
+    PatientProfileCreateSerializer
 )
 from .models import (
     User,
     DoctorProfile, PatientProfile,
-    NurseProfile,
+    NurseProfile, ReceptionistProfile,
 )
 
 
@@ -98,33 +106,66 @@ class UserModelViewSet(ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     http_method_names = ["get", "put", "patch", "delete"]
+    permission_classes = [IsAuthenticated, IsAdminUser]
 
 
 class BaseProfileModelViewSet(ModelViewSet):
-    queryset = None
-    serializer_class = None
-    permission_classes = [IsAuthenticated]
+    def get_object(self):
+        obj = get_object_or_404(self.get_queryset(), id=self.kwargs["pk"])
+        if obj:
+            self.check_object_permissions(self.request, obj)
+        return obj
 
     def get_queryset(self):
-        qs = super().get_queryset()
-        if not self.request.user.is_staff:
-            return qs.filter(user=self.request.user)
-        return qs
+        qs = super().get_queryset().filter(user=self.request.user)
+        if qs.exists():
+            return qs
+        return super().get_queryset()
 
 
-def _make_viewsets(model, serializer):
-    """
-        Build a ViewSet class for `model` using `serializer`.
+class DoctorModelViewSet(BaseProfileModelViewSet):
+    queryset = DoctorProfile.objects.all()
+    serializer_class = DoctorProfileSerializer
+    permission_classes = [IsAuthenticated, IsDoctorRecepOrAdmin]
 
-        The returned class inherits all behavior from BaseProfileViewSet and only
-        sets `queryset` and `serializer_class`. `select_related("user")` is applied
-        here to prevent N+1 queries on list endpoints.
-    """
-    return type(
-        f"{model.__name__}ModelViewSet",
-        (BaseProfileModelViewSet,),
-        {"queryset": model.objects.select_related("user"), "serializer_class": serializer}
+
+class PatientModelViewSet(BaseProfileModelViewSet):
+    queryset = PatientProfile.objects.all()
+    serializer_class = PatientProfileSerializer
+    permission_classes = [IsAuthenticated, PatientAccessPermission]
+
+    def perform_create(self, serializer):
+        serializer.save(role="PAT")
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return PatientProfileCreateSerializer
+        return super().get_serializer_class()
+
+    @action(
+        detail=False,
+        methods=["GET", "PUT"],
+        permission_classes=[IsOwnerOnly],
+        url_path="me"
     )
+    def logged_in_patient(self, request):
+        patient = get_object_or_404(PatientProfile, user=request.user)
 
-DoctorProfileModelViewSet = _make_viewsets(DoctorProfile, DoctorProfileSerializer)
-PatientProfileModelViewSet = _make_viewsets(PatientProfile, PatientProfileSerializer)
+        if request.method == "GET":
+            serializer = self.get_serializer(patient)
+            return Response(serializer.data)
+        serializer = self.get_serializer(patient, data=request.data, partial=request.method=="PUT")
+        serializer.is_valid(raise_exception=True)
+        return Response(serializer.data)
+
+
+class NurseModelViewSet(BaseProfileModelViewSet):
+    queryset = NurseProfile.objects.all()
+    serializer_class = NurseProfileSerializer
+    permission_classes = [IsAuthenticated, IsDocRecepNurseOrAdmin]
+
+
+class ReceptionistModelViewSet(BaseProfileModelViewSet):
+    queryset = ReceptionistProfile.objects.all()
+    serializer_class = ReceptionistProfileSerializer
+    permission_classes = [IsAuthenticated, IsDoctorRecepOrAdmin]

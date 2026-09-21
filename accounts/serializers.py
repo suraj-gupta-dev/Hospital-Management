@@ -1,6 +1,9 @@
 import re
 from django.contrib.auth.password_validation import validate_password
+from django.db import transaction
+
 from rest_framework import serializers
+
 
 from .models import (
     User,
@@ -55,10 +58,21 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         validated_data.pop("confirm_password")
         user = User.objects.create_user(**validated_data)
         return user
+    
 
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True, write_only=True)
     password = serializers.CharField(required=True, write_only=True, style={"input_type": "password"})
+
+    # for just testing purpose i am listing all email so that i can loging with selected email.
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        emails = User.objects.all().values_list("email", flat=True)
+        self.fields["email"] = serializers.ChoiceField(
+            choices=[(email, email) for email in emails],
+            required=True
+        )
 
 
 class ChangePasswordSerializer(serializers.Serializer):
@@ -109,92 +123,131 @@ class UserSerializer(serializers.ModelSerializer):
         ]
 
 
-class DoctorProfileSerializer(serializers.ModelSerializer):
+class BaseProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        fields = [
+            "id",
+            "date_of_birth",
+            "gender",
+            "profile_picture",
+            "address_line_1",
+            "address_line_2",
+            "city",
+            "state",
+            "country",
+            "postal_code",
+            "emergency_contact_name",
+            "emergency_contact_phone",
+            "created_at",
+            "updated_at",
+            "user",
+        ]
+        read_only_fields = [
+            "id",
+            "profile_picture",
+            "created_at",
+            "updated_at",
+            "user",
+        ]
+
+
+class DoctorProfileSerializer(BaseProfileSerializer):
     class Meta:
         model = DoctorProfile
-        fields = [
-            "id", "date_of_birth", "gender", "profile_picture",
-            "address_line_1", "address_line_2", "city", "state", "country",
-            "postal_code", "emergency_contact_name", "emergency_contact_phone",
-            "created_at", "updated_at", "user", "registration_number",
+        fields = BaseProfileSerializer.Meta.fields + [
+            "registration_number",
             "specialization", "qualification", "experience_years",
             "consultation_fee", "bio", "is_available",
         ]
-        read_only_fields = ["id", "profile_picture", "created_at", "updated_at", "user"]
 
 
-class PatientProfileSerializer(serializers.ModelSerializer):
+class PatientProfileSerializer(BaseProfileSerializer):
+    full_name = serializers.SerializerMethodField(read_only=True)
+    email = serializers.EmailField(source="user.email")
+
     class Meta:
         model = PatientProfile
-        fields = [
-            "id", "date_of_birth", "gender", "profile_picture",
-            "address_line_1", "address_line_2", "city", "state", "country",
-            "postal_code", "emergency_contact_name", "emergency_contact_phone",
-            "created_at", "updated_at", "user", "patient_number", "blood_group",
+        fields = ["full_name", "email"] + BaseProfileSerializer.Meta.fields + [
+            "patient_number", "blood_group",
         ]
-        read_only_fields = ["id", "profile_picture", "created_at", "updated_at", "user"]
+
+    def get_full_name(self, obj):
+        return f"{obj.user.first_name} {obj.user.last_name}"
+
+class PatientProfileCreateSerializer(serializers.ModelSerializer):
+    class PatientProfileSerializer(serializers.ModelSerializer):
+        class Meta:
+            model = PatientProfile
+            fields = [
+                "date_of_birth",
+                "gender",
+                "patient_number",
+                "blood_group",
+            ]
+    patient_profile = PatientProfileSerializer()
+    password = serializers.CharField(style={"input_type": "password"}, required=True, write_only=True)
+    confirm_password = serializers.CharField(style={"input_type": "password"}, required=True, write_only=True)
+
+    class Meta:
+        model = User
+        fields = ["first_name", "last_name", "email", "password", "confirm_password", "patient_profile"]
+
+    def validate(self, attrs):
+        """Validate password match and additional constraints"""
+        # Check password match
+        if attrs['password'] != attrs.pop('confirm_password'):
+            raise serializers.ValidationError({
+                "password": "Password fields didn't match."
+            })
+        return attrs
+
+    def create(self, validated_data):
+        profile = validated_data.pop("patient_profile")
+        print(validated_data)
+        user = User.objects.create_user_with_profile(**validated_data, profile=profile)
+        return user
 
 
-class NurseProfileSerializer(serializers.ModelSerializer):
+class NurseProfileSerializer(BaseProfileSerializer):
     class Meta:
         model = NurseProfile
-        fields = [
-            "id", "date_of_birth", "gender", "profile_picture",
-            "address_line_1", "address_line_2", "city", "state", "country",
-            "postal_code", "emergency_contact_name", "emergency_contact_phone",
-            "created_at", "updated_at", "user", "registration_number",
-            "qualification", "experience_years", "nursing_type",
+        fields = BaseProfileSerializer.Meta.fields + [
+            "registration_number",
+            "qualification", "experience_years",
         ]
-        read_only_fields = ["id", "profile_picture", "created_at", "updated_at", "user"]
 
 
-class ReceptionistProfileSerializer(serializers.ModelSerializer):
+class ReceptionistProfileSerializer(BaseProfileSerializer):
     class Meta:
         model = ReceptionistProfile
-        fields = [
-            "id", "date_of_birth", "gender", "profile_picture",
-            "address_line_1", "address_line_2", "city", "state", "country",
-            "postal_code", "emergency_contact_name", "emergency_contact_phone",
-            "created_at", "updated_at", "user", "employee_id", "qualification",
+        fields = BaseProfileSerializer.Meta.fields + [
+            "employee_id", "qualification",
             "joining_date",
         ]
-        read_only_fields = ["id", "profile_picture", "created_at", "updated_at", "user"]
 
 
-class PharmacistProfileSerializer(serializers.ModelSerializer):
+class PharmacistProfileSerializer(BaseProfileSerializer):
     class Meta:
         model = PharmacistProfile
-        fields = [
-            "id", "date_of_birth", "gender", "profile_picture",
-            "address_line_1", "address_line_2", "city", "state", "country",
-            "postal_code", "emergency_contact_name", "emergency_contact_phone",
-            "created_at", "updated_at", "user", "license_number", "qualification",
+        fields = BaseProfileSerializer.Meta.fields + [
+            "license_number", "qualification",
             "experience_years", "joining_date",
         ]
-        read_only_fields = ["id", "profile_picture", "created_at", "updated_at", "user"]
 
 
-class LabTechnicianProfileSerializer(serializers.ModelSerializer):
+class LabTechnicianProfileSerializer(BaseProfileSerializer):
     class Meta:
         model = LabTechnicianProfile
-        fields = [
-            "id", "date_of_birth", "gender", "profile_picture",
-            "address_line_1", "address_line_2", "city", "state", "country",
-            "postal_code", "emergency_contact_name", "emergency_contact_phone",
-            "created_at", "updated_at", "user", "employee_id", "qualification",
+        fields = BaseProfileSerializer.Meta.fields + [
+            "employee_id", "qualification",
             "specialization", "experience_years", "joining_date",
         ]
-        read_only_fields = ["id", "profile_picture", "created_at", "updated_at", "user"]
 
 
-class CashierProfileSerializer(serializers.ModelSerializer):
+class CashierProfileSerializer(BaseProfileSerializer):
     class Meta:
         model = CashierProfile
-        fields = [
-            "id", "date_of_birth", "gender", "profile_picture",
-            "address_line_1", "address_line_2", "city", "state", "country",
-            "postal_code", "emergency_contact_name", "emergency_contact_phone",
-            "created_at", "updated_at", "user", "employee_id", "joining_date",
+        fields = BaseProfileSerializer.Meta.fields + [
+            "employee_id", "joining_date",
         ]
-        read_only_fields = ["id", "profile_picture", "created_at", "updated_at", "user"]
 

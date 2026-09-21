@@ -14,7 +14,9 @@ urlpatterns = [
 
 router = DefaultRouter()
 router.register("users", views.UserModelViewSet)
-router.register("doctors", views.DoctorProfileModelViewSet)
-router.register("patients", views.PatientProfileModelViewSet)
+router.register("doctors", views.DoctorModelViewSet)
+router.register("patients", views.PatientModelViewSet)
+router.register("nurses", views.NurseModelViewSet)
+router.register("receptionists", views.ReceptionistModelViewSet)
 
 urlpatterns += router.urls
