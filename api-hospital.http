@@ -1,0 +1,29 @@
+POST http://localhost:8000/api/login/ HTTP/1.1
+Content-Type: application/json
+
+{
+    "email": "admin1@medicare.com",
+    "password": "Admin@1234"
+}
+
+###
+
+GET http://localhost:8000/api/logout/ HTTP/1.1
+Content-Type: application/json
+
+###
+
+GET http://localhost:8000/api/departments/ HTTP/1.1
+Content-Type: application/json
+
+###
+POST http://localhost:8000/api/staff-depart/create/ HTTP/1.1
+Content-Type: application/json
+X-CSRFToken: U5sWlBrBE61ObPlDHvNTZOKrYBrjuq5G
+
+{
+    "department": "f127572f-3457-4e9b-97e1-3815ae84d726",
+    "staff": "7b65bc80-6b5d-4ed0-aa24-0166965a6297",
+    "is_primary": "true",
+    "is_active": "true"
+}

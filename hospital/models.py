@@ -26,7 +26,7 @@ class Department(BaseModel):
     is_active = models.BooleanField(default=True)
 
     def __str__(self):
-        return f"{self.name} - {self.branch.name}"
+        return f"{self.name}-{self.code}"
 
 
 class StaffDeparment(models.Model):

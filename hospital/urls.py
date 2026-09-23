@@ -5,7 +5,7 @@ from . import views
 
 
 
-urlpatterns = []
+urlpatterns = [path("staff-depart/create/", views.StaffDepartmentAPIView.as_view(), name="staff-depart")]
 
 router = DefaultRouter()
 router.register("departments", views.DepartmentModelViewSet)
