@@ -25,6 +25,7 @@ ALLOWED_HOSTS = []
 CREATED_APPS = [
     "accounts",
     "hospital",
+    "appointments",
 ]
 
 # THIRD_PARTY_APPS = [
