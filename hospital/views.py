@@ -1,10 +1,10 @@
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAdminUser, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 
 from .serializers import DepartmentSerializer, StaffDepartmentSerializer
-from .permissions import IsStafforAdminOnly
+from .permissions import IsAdminOrReadOnly
 from .models import Department, StaffDeparment
 
 
@@ -13,11 +13,11 @@ from .models import Department, StaffDeparment
 class DepartmentModelViewSet(ModelViewSet):
     queryset = Department.objects.all()
     serializer_class = DepartmentSerializer
-    permission_classes = [IsAuthenticated, IsAdminUser]
+    permission_classes = [IsAuthenticated, IsAdminOrReadOnly]
 
 
 class StaffDepartmentAPIView(APIView):
-    permission_classes = [IsAuthenticated, IsStafforAdminOnly]
+    permission_classes = [IsAuthenticated, IsAdminUser]
     serializer_class = StaffDepartmentSerializer
 
     def post(self, request):

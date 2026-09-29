@@ -111,15 +111,13 @@ class UserModelViewSet(ModelViewSet):
 
 class BaseProfileModelViewSet(ModelViewSet):
     def get_object(self):
-        obj = get_object_or_404(self.get_queryset(), id=self.kwargs["pk"])
-        if obj:
-            self.check_object_permissions(self.request, obj)
+        obj = get_object_or_404(super().get_queryset(), pk=self.kwargs["pk"])
+        self.check_object_permissions(self.request, obj)
         return obj
 
     def get_queryset(self):
-        qs = super().get_queryset().filter(user=self.request.user)
-        if qs.exists():
-            return qs
+        if getattr(self.request.user, 'role', None) == "PAT":
+            return super().get_queryset().filter(user=self.request.user)
         return super().get_queryset()
 
 

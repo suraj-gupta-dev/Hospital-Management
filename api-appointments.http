@@ -1,0 +1,30 @@
+POST http://localhost:8000/api/login/ HTTP/1.1
+Content-Type: application/json
+
+{
+    "email": "patient.rahul@gmail.com",
+    "password": "Patient@123"
+}
+
+###
+
+GET http://localhost:8000/api/logout/ HTTP/1.1
+Content-Type: application/json
+
+###
+
+GET http://localhost:8000/api/patients/ HTTP/1.1
+Content-Type: application/json
+
+###
+
+POST http://localhost:8000/api/appointments/ HTTP/1.1
+Content-Type: application/json
+X-CSRFToken: fEvUCH5yX46btJOLVAoXAKX9B33Fm55X
+
+{
+    "patient": ,
+    "doctor": self.doctor.id,
+    "appointment_date": self.appointment_date.isoformat(),
+    "appointment_slot": 1, 
+}

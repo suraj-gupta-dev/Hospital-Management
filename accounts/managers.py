@@ -27,20 +27,22 @@ class UserManager(BaseUserManager):
         return user
 
     def create_superuser(self, email, first_name, last_name, password, **extra_kwargs):
-            extra_kwargs.update({
-                "is_staff": True,
-                "is_verified": True,
-                "is_superuser": True,
-                "is_active": True
-            })
-    
-            if extra_kwargs.get("is_staff") is not True:
-                raise ValueError("Superuser must have is_staff=True.")
-            if extra_kwargs.get("is_superuser") is not True:
-                raise ValueError("Superuser must have is_superuser=True.")
-            
-            user = self.create_user(email, first_name, last_name, password, **extra_kwargs)
-            return user
+        from accounts.models import UserRoleChoices
+        extra_kwargs.update({
+            "is_staff": True,
+            "is_verified": True,
+            "is_superuser": True,
+            "is_active": True,
+            "role": UserRoleChoices.HOSPITAL_ADMIN
+        })
+
+        if extra_kwargs.get("is_staff") is not True:
+            raise ValueError("Superuser must have is_staff=True.")
+        if extra_kwargs.get("is_superuser") is not True:
+            raise ValueError("Superuser must have is_superuser=True.")
+        
+        user = self.create_user(email, first_name, last_name, password, **extra_kwargs)
+        return user
 
     @transaction.atomic
     def create_user_with_profile(self, email, first_name, last_name, password, profile, **extra_kwargs):

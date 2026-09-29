@@ -1,8 +1,9 @@
-from rest_framework.permissions import BasePermission
+from rest_framework.permissions import BasePermission, SAFE_METHODS
 
 
-class IsStafforAdminOnly(BasePermission):
+
+class IsAdminOrReadOnly(BasePermission):
     def has_permission(self, request, view):
         if request.user.role == "HA":
             return True
-        return False
+        return request.method in SAFE_METHODS

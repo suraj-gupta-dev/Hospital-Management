@@ -105,6 +105,9 @@ class DoctorProfile(ProfileBaseModel):
     is_available = models.BooleanField(default=True)
     joining_date = models.DateField(null=True, blank=True)
 
+    def __str__(self):
+        return self.user.email
+
 
 class NurseProfile(ProfileBaseModel):
     class Designation(models.TextChoices):
@@ -125,6 +128,9 @@ class NurseProfile(ProfileBaseModel):
     qualification = models.CharField(max_length=255)
     experience_years = models.PositiveIntegerField(default=0)
     joining_date = models.DateField(null=True, blank=True)
+
+    def __str__(self):
+            return self.user.email
 
     
 class PatientProfile(ProfileBaseModel):
@@ -166,6 +172,9 @@ class ReceptionistProfile(ProfileBaseModel):
     qualification = models.CharField(max_length=255, blank=True)
     joining_date = models.DateField(null=True, blank=True)
 
+    def __str__(self):
+            return self.user.email
+
 
 class PharmacistProfile(ProfileBaseModel):
     class Designation(models.TextChoices):
@@ -185,6 +194,9 @@ class PharmacistProfile(ProfileBaseModel):
     employment_type = models.CharField(max_length=20, choices=EmploymentType.choices, blank=True)
     experience_years = models.PositiveIntegerField(default=0)
     joining_date = models.DateField(null=True, blank=True)
+
+    def __str__(self):
+            return self.user.email
 
 
 class LabTechnicianProfile(ProfileBaseModel):
@@ -208,6 +220,9 @@ class LabTechnicianProfile(ProfileBaseModel):
     experience_years = models.PositiveIntegerField(default=0)
     joining_date = models.DateField(null=True, blank=True)
 
+    def __str__(self):
+            return self.user.email
+
 
 class CashierProfile(ProfileBaseModel):
     class Designation(models.TextChoices):
@@ -226,6 +241,9 @@ class CashierProfile(ProfileBaseModel):
     designation = models.CharField(max_length=50, choices=Designation.choices, blank=True)
     employment_type = models.CharField(max_length=20, choices=EmploymentType.choices, blank=True)
     joining_date = models.DateField(null=True, blank=True)
+
+    def __str__(self):
+            return self.user.email
 
 
 class HospitalAdminProfile(ProfileBaseModel):
@@ -251,5 +269,8 @@ class HospitalAdminProfile(ProfileBaseModel):
     employee_id = models.CharField(max_length=50, unique=True)
     designation = models.CharField(max_length=50, choices=Designation.choices, null=True)
     joining_date = models.DateField(null=True, blank=True)
+
+    def __str__(self):
+            return self.user.email
 
 

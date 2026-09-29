@@ -2,7 +2,7 @@ from django.db import models
 
 from hospital.models import Department
 from accounts.models import DoctorProfile, PatientProfile
-from services.appointment import AppointmentIDService
+from .services.appointment import AppointmentIDService
 
 
 
@@ -20,8 +20,25 @@ class DoctorSchedule(models.Model):
     day_of_week = models.PositiveSmallIntegerField(choices=WeekDay.choices)
     start_time = models.TimeField()
     end_time = models.TimeField()
-    slot_duration = models.PositiveSmallIntegerField(help_text="Appointment duration in minutes.")
     is_active = models.BooleanField(default=True)
+
+
+class AppointmentSlot(models.Model):
+    doctor = models.ForeignKey(DoctorProfile, on_delete=models.CASCADE, related_name="appointment_slots")
+    date = models.DateField()
+    appointment_time = models.TimeField()
+    is_available = models.BooleanField(default=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["doctor", "date", "appointment_time"],
+                name="unique_doctor_appointment_slot"
+            )
+        ]
+
+    def __str__(self):
+        return str(self.appointment_time)
 
 
 class Appointment(models.Model):
@@ -43,8 +60,7 @@ class Appointment(models.Model):
     doctor = models.ForeignKey(DoctorProfile, on_delete=models.PROTECT, related_name="appointments")
     department = models.ForeignKey(Department, on_delete=models.PROTECT, related_name="appointments")
     appointment_date = models.DateField()
-    start_time = models.TimeField()
-    end_time = models.TimeField()
+    appointment_slot = models.OneToOneField(AppointmentSlot, on_delete=models.PROTECT, related_name="appointment", null=True)
     appointment_type = models.CharField(max_length=30, choices=AppointmentType.choices)
     status = models.CharField(max_length=30, choices=Status.choices)
     reason = models.TextField(blank=True, null=True)

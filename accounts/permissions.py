@@ -53,49 +53,48 @@ class IsDocRecepNurseOrAdmin(BasePermission):
 
 class RoleMatrixPermission(BasePermission):
     """
-    Subclass and override these class attrs:
-        ROLE_METHODS     : {role: {allowed HTTP methods}}
-        OWNER_ROLES      : roles that can only access their own object
-        ADMIN_ROLE       : the omnipotent role
+    Admin → full access.
+    Everyone else → method must be in ROLE_METHODS[role].
+    Roles in OWNER_ROLES are additionally restricted to their own objects.
     """
+
     ADMIN_ROLE = "HA"
     ROLE_METHODS = {}
-    OWNER_ROLES = {"PAT"}
+    OWNER_ROLES = set()
+
+    def _role(self, request):
+        return getattr(request.user, "role", None)
 
     def has_permission(self, request, view):
-        if not request.user.is_authenticated or not request.user:
+        if not request.user or not request.user.is_authenticated:
             return False
 
-        role = getattr(request.user, "role", None)
+        role = self._role(request)
         if role == self.ADMIN_ROLE:
             return True
 
-        allowed_methods = self.ROLE_METHODS.get(role, list())
-        if request.method in allowed_methods:
-            return True
+        return request.method in self.ROLE_METHODS.get(role, set())
 
     def has_object_permission(self, request, view, obj):
-        role = getattr(request.user, "role", None)
+        role = getattr (request.user, "role", None)
         if role == self.ADMIN_ROLE:
             return True
 
         if role in self.OWNER_ROLES:
             return getattr(obj, "user", None) == request.user
 
-        allowed_methods = self.ROLE_METHODS.get(role, list())
-        if request.method in allowed_methods:
-            return True
+        return True
 
 
 class PatientAccessPermission(RoleMatrixPermission):
     ROLE_METHODS = {
-        "HA": ["GET", "POST", "PUT", "PATCH", "DELETE"],
-        "REC": ["GET", "POST", "PUT", "PATCH"],
-        "PAT": ["GET", "PUT", "PATCH"],
-        "DOC": ["GET", "PUT", "PATCH"],
-        "NUR": ["GET"],
-        "LT": ["GET"],
-        "PHA": ["GET"],
-        "CAS": ["GET"],
+        "HA":  {"GET", "POST", "PUT", "PATCH", "DELETE"},
+        "REC": {"GET", "POST", "PUT", "PATCH"},
+        "PAT": {"GET", "PUT", "PATCH"},
+        "DOC": {"GET", "PUT", "PATCH"},
+        "NUR": {"GET"},
+        "LT":  {"GET"},
+        "PHA": {"GET"},
+        "CAS": {"GET"},
     }
     OWNER_ROLES = {"PAT"}
