@@ -57,19 +57,22 @@ class ProfileBaseModel(models.Model):
             ("O", "Other")
         ]
 
-    date_of_birth = models.DateField(null=True)
+    date_of_birth = models.DateField(null=True, blank=True)
     gender = models.CharField(choices=GENDER_CHOICES, max_length=1)
-    profile_picture = models.ImageField(upload_to="uploads/images", null=True)
+    profile_picture = models.ImageField(upload_to="uploads/images", null=True, blank=True)
 
-    address_line_1 = models.CharField(max_length=100, null=True)
-    address_line_2 = models.CharField(max_length=100, null=True)
-    city = models.CharField(max_length=30, null=True)
-    state = models.CharField(max_length=30, null=True)
-    country = models.CharField(max_length=30, null=True)
-    postal_code = models.IntegerField(validators=[MinValueValidator(100000), MaxValueValidator(999999)], null=True)
-
-    emergency_contact_name = models.CharField(max_length=10, null=True)
-    emergency_contact_phone = models.CharField(max_length=50, null=True)
+    address_line_1 = models.CharField(max_length=100, null=True, blank=True)
+    address_line_2 = models.CharField(max_length=100, null=True, blank=True)
+    city = models.CharField(max_length=30, null=True, blank=True)
+    state = models.CharField(max_length=30, null=True, blank=True)
+    country = models.CharField(max_length=30, null=True, blank=True)
+    postal_code = models.IntegerField(
+        validators=[MinValueValidator(100000),
+        MaxValueValidator(999999)],
+        null=True, blank=True
+    )
+    emergency_contact_name = models.CharField(max_length=10, null=True, blank=True)
+    emergency_contact_phone = models.CharField(max_length=50, null=True, blank=True)
     created_at = models.DateTimeField(auto_now=True)
     updated_at = models.DateTimeField(auto_now_add=True)
 

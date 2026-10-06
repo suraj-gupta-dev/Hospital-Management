@@ -31,7 +31,7 @@ LOGGING = {
 
     "loggers": {
         "": {
-            "handlers": ["file", "console"],
+            "handlers": ["console"],
             "level": env("DJANGO_LOG_LEVEL"),
         },
     },

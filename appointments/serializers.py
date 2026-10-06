@@ -1,9 +1,12 @@
+import logging
+
 from rest_framework import serializers
 from datetime import timedelta
 
 from .models import DoctorSchedule, Appointment, AppointmentSlot
 from hospital.models import StaffDeparment
 
+logg = logging.getLogger(__name__)
 
 
 class DoctorScheduleSerializer(serializers.ModelSerializer):
@@ -41,18 +44,18 @@ class DoctorScheduleSerializer(serializers.ModelSerializer):
 
 
 class AppointmentSlotSerializer(serializers.ModelSerializer):
-    SLOT_GAP = timedelta(minutes=15)
+    SLOT_GAP = 15
 
     class Meta:
         model = AppointmentSlot
-        fields = ["doctor", "date", "appointment_time", "is_available"]
-        read_only_fields = ["is_available"]
+        fields = ["appointment_time"]
 
     def _to_dt(self, t):
         return timedelta(hours=t.hour, minutes=t.minute)
 
     def validate(self, attrs):
         last_appoint_slot = AppointmentSlot.objects.last()
+
         if last_appoint_slot:
             gap = self._to_dt(attrs["appointment_time"]) - self._to_dt(last_appoint_slot.appointment_time)
             if gap != self.SLOT_GAP:
@@ -64,25 +67,25 @@ class AppointmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Appointment
         fields = [
-            "appointment_number",
-            "patient",
-            "doctor",
-            "department",
-            "appointment_date",
-            "appointment_slot",
-            "appointment_type",
-            "status",
-            "reason",
-            "notes",
-            "cancelled_at",
-            "cancellation_reason",
+            "appointment_number", "patient",
+            "doctor", "department",
+            "appointment_date", "slot",
+            "appointment_type", "status",
+            "reason", "notes",
+            "cancelled_at", "cancellation_reason",
         ]
         read_only_fields = [ "appointment_number", "status", "cancelled_at", "cancellation_reason"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context["request"]
+        if request and getattr(request.user, "role", None) == "PAT":
+            self.fields.pop("patient")
 
     def validate(self, attrs):
         department = attrs["department"]
         doctor = attrs["doctor"]
-        slot = attrs["appointment_slot"]
+        patient_profile = self.context.get("patient") 
 
         # 1. Doctor → Department
         is_assinged = StaffDeparment.objects.filter(
@@ -92,32 +95,32 @@ class AppointmentSerializer(serializers.ModelSerializer):
         )
 
         if not is_assinged:
+            logg.error(f"{doctor} doesn't belog to {department}")
             raise serializers.ValidationError({
                 "department": (
                     "This doctor is not assigned to the selected department."
                 )
             })
 
-        # 2. Slot → Doctor
-        if slot.doctor.id != doctor.id:
-            raise serializers.ValidationError({
-                "slot": "This appointment slot does not belong to the selected doctor."
-            })
-
         # 3. Check if there is a apoointment already exist for same day.
         have_appointment = Appointment.objects.filter(
-            patient=attrs["patient"],
+            patient = patient_profile,
             doctor=doctor,
             department=department,
             appointment_date=attrs["appointment_date"],
+        ).exclude(
+            status=Appointment.Status.CANCELLED
         )
 
         if have_appointment.exists():
+            logg.error(f"{patient_profile} already have appointment with-{doctor}")
             raise serializers.ValidationError({
                 "slot": (
                     "This patient already has an appointment "
                     "at this time."
                 )
             })
-        
         return attrs
+
+class CancelAppointmentSerializer(serializers.Serializer):
+    cancellation_reason = serializers.CharField()
