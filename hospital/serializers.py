@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 from accounts.models import User
-from .models import Department, StaffDeparment
+from .models import Department, StaffDepartment
 
 
 
@@ -16,7 +16,7 @@ class StaffDepartmentSerializer(serializers.ModelSerializer):
     ALLOWED_ROLES = ["DOC", "NUR", "REC", "PHA", "LT", "CAS"]
         
     class Meta:
-        model = StaffDeparment
+        model = StaffDepartment
         fields = ["staff", "department", "is_primary", "is_active"]
 
 

@@ -4,9 +4,9 @@ from rest_framework import serializers
 from datetime import timedelta
 
 from .models import DoctorSchedule, Appointment, AppointmentSlot
-from hospital.models import StaffDeparment
+from hospital.models import StaffDepartment
 
-logg = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class DoctorScheduleSerializer(serializers.ModelSerializer):
@@ -39,7 +39,9 @@ class DoctorScheduleSerializer(serializers.ModelSerializer):
                 is_active=True
             )
             if overlapping.exists():
-                raise serializers.ValidationError("This schedule overlaps with an existing one for the same doctor and day.")
+                raise serializers.ValidationError(
+                    "This schedule overlaps with an existing one for the same doctor and day."
+                )
         return attrs
 
 
@@ -88,21 +90,21 @@ class AppointmentSerializer(serializers.ModelSerializer):
         patient_profile = self.context.get("patient") 
 
         # 1. Doctor → Department
-        is_assinged = StaffDeparment.objects.filter(
+        is_assigned = StaffDepartment.objects.filter(
             staff=doctor.user,
             department=department,
             is_active=True
         )
 
-        if not is_assinged:
-            logg.error(f"{doctor} doesn't belog to {department}")
+        if not is_assigned:
+            logger.error(f"{doctor} doesn't belong to {department}")
             raise serializers.ValidationError({
                 "department": (
                     "This doctor is not assigned to the selected department."
                 )
             })
 
-        # 3. Check if there is a apoointment already exist for same day.
+        # 3. Check if there is a appointment already exist for same day.
         have_appointment = Appointment.objects.filter(
             patient = patient_profile,
             doctor=doctor,
@@ -113,7 +115,7 @@ class AppointmentSerializer(serializers.ModelSerializer):
         )
 
         if have_appointment.exists():
-            logg.error(f"{patient_profile} already have appointment with-{doctor}")
+            logger.error(f"{patient_profile} already have appointment with-{doctor}")
             raise serializers.ValidationError({
                 "slot": (
                     "This patient already has an appointment "

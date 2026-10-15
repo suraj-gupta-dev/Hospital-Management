@@ -6,7 +6,7 @@ from django.utils import timezone
 from django.db import transaction
 from rest_framework import serializers
 
-logg = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 

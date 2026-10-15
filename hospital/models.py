@@ -23,7 +23,7 @@ class Department(models.Model):
         return f"{self.name}-{self.code}"
 
 
-class StaffDeparment(models.Model):
+class StaffDepartment(models.Model):
     staff = models.ForeignKey(User, on_delete=models.PROTECT, related_name="department_assignments")
     department = models.ForeignKey(Department, on_delete=models.PROTECT, related_name="staff_assignments")
     is_primary = models.BooleanField(default=False)

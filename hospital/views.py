@@ -5,7 +5,7 @@ from rest_framework.response import Response
 
 from .serializers import DepartmentSerializer, StaffDepartmentSerializer
 from .permissions import IsAdminOrReadOnly
-from .models import Department, StaffDeparment
+from .models import Department, StaffDepartment
 
 
 

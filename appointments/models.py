@@ -69,7 +69,7 @@ class Appointment(models.Model):
             # Doctor cannot be double-booked in the same slot
             models.UniqueConstraint(
                 fields=['doctor', 'appointment_date', 'slot'],
-                condition=~Q(status='Cancelled'),
+                condition=~Q(status="CANCELLED"),
                 name="unique_active_appointment"
             ),
 
@@ -77,7 +77,7 @@ class Appointment(models.Model):
             # with the same doctor on the same day
             models.UniqueConstraint(
                 fields=["patient", "doctor", "appointment_date"],
-                condition=~Q(status__in=["Cancelled", "Completed"]),
+                condition=~Q(status__in=["CANCELLED", "COMPLETED"]),
                 name="unique_active_patient_doctor_per_day"
             )
         ]
