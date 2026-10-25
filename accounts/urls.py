@@ -9,7 +9,8 @@ urlpatterns = [
     path("register/", views.UserCreateAPIView.as_view(), name="register"),
     path("login/", views.LoginGenericAPIView.as_view(), name="login"),
     path("logout/", views.LogoutAPIView.as_view(), name="logout"),
-    path("change-password/", views.ChangePasswordAPIView.as_view(), name="change-password")
+    path("change-password/", views.ChangePasswordAPIView.as_view(), name="change-password"),
+    path("staff/", views.StaffCreateGenericAPIView.as_view(), name="staff-create")
 ]
 
 router = DefaultRouter()

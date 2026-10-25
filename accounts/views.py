@@ -1,18 +1,18 @@
 from django.contrib.auth import authenticate, login, logout
 from django.shortcuts import get_object_or_404
+from django.db import transaction
 
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.generics import CreateAPIView, GenericAPIView
 from rest_framework.viewsets import ModelViewSet
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.decorators import action
 
 from .permissions import (
     IsAnonymousUser, PatientAccessPermission,
-    IsDoctorRecepOrAdmin, IsOwnerOnly,
-    IsDocRecepNurseOrAdmin
+    IsDoctorReceptOrAdmin, IsOwnerOnly,
 )
 
 from .serializers import (
@@ -20,8 +20,9 @@ from .serializers import (
     ChangePasswordSerializer, UserSerializer,
     DoctorProfileSerializer, PatientProfileSerializer,
     NurseProfileSerializer, ReceptionistProfileSerializer,
-    PatientProfileCreateSerializer
+    ReceptCreatePatientSerializer, StaffCreateSerializer
 )
+from .serializers import STAFF_PROFILE_MAP
 from .models import (
     User,
     DoctorProfile, PatientProfile,
@@ -41,17 +42,17 @@ class UserCreateAPIView(CreateAPIView):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = serializer.save()
+        user = serializer.save(role=User.RoleChoices.PATIENT)
         return Response({
             'status': 'success',
             'message': 'User registered successfully',
             'data': {
-                'id': user.id,
+                'id': user.user_id,
                 'email': user.email,
                 'full_name': user.full_name if hasattr(user, 'full_name') else f"{user.first_name} {user.last_name}".strip()
             }
         }, status=status.HTTP_201_CREATED)
-
+    
 
 class LoginGenericAPIView(GenericAPIView):
     serializer_class = LoginSerializer
@@ -108,36 +109,44 @@ class UserModelViewSet(ModelViewSet):
     http_method_names = ["get", "put", "patch", "delete"]
     permission_classes = [IsAuthenticated, IsAdminUser]
 
+    @action(
+        methods=["get"],
+        detail=False,
+        permission_classes=[IsAuthenticated],
+        url_path="me"
+    )
+    def me(self, request):
+        serializer = self.get_serializer(request.user)
+        return Response(serializer.data)
 
-class BaseProfileModelViewSet(ModelViewSet):
-    def get_object(self):
-        obj = get_object_or_404(super().get_queryset(), pk=self.kwargs["pk"])
-        self.check_object_permissions(self.request, obj)
-        return obj
+
+class DoctorModelViewSet(ModelViewSet):
+    queryset = DoctorProfile.objects.all()
+    serializer_class = DoctorProfileSerializer
+    permission_classes = [IsAuthenticated, IsDoctorReceptOrAdmin]
+
+    def get_queryset(self):
+        if getattr(self.request.user, 'role', None) == User.RoleChoices.DOCTOR:
+            return super().get_queryset().filter(user=self.request.user)
+        return super().get_queryset()
+
+
+class PatientModelViewSet(ModelViewSet):
+    queryset = PatientProfile.objects.all()
+    serializer_class = PatientProfileSerializer
+    permission_classes = [IsAuthenticated, PatientAccessPermission]
 
     def get_queryset(self):
         if getattr(self.request.user, 'role', None) == "PAT":
             return super().get_queryset().filter(user=self.request.user)
         return super().get_queryset()
 
-
-class DoctorModelViewSet(BaseProfileModelViewSet):
-    queryset = DoctorProfile.objects.all()
-    serializer_class = DoctorProfileSerializer
-    permission_classes = [IsAuthenticated, IsDoctorRecepOrAdmin]
-
-
-class PatientModelViewSet(BaseProfileModelViewSet):
-    queryset = PatientProfile.objects.all()
-    serializer_class = PatientProfileSerializer
-    permission_classes = [IsAuthenticated, PatientAccessPermission]
-
     def perform_create(self, serializer):
         serializer.save(role="PAT")
 
     def get_serializer_class(self):
         if self.action == "create":
-            return PatientProfileCreateSerializer
+            return ReceptCreatePatientSerializer
         return super().get_serializer_class()
 
     @action(
@@ -152,18 +161,50 @@ class PatientModelViewSet(BaseProfileModelViewSet):
         if request.method == "GET":
             serializer = self.get_serializer(patient)
             return Response(serializer.data)
+        
         serializer = self.get_serializer(patient, data=request.data, partial=request.method=="PUT")
         serializer.is_valid(raise_exception=True)
         return Response(serializer.data)
 
 
-class NurseModelViewSet(BaseProfileModelViewSet):
+class NurseModelViewSet(ModelViewSet):
     queryset = NurseProfile.objects.all()
     serializer_class = NurseProfileSerializer
-    permission_classes = [IsAuthenticated, IsDocRecepNurseOrAdmin]
+    permission_classes = [IsAuthenticated, IsDoctorReceptOrAdmin]
+
+    def get_queryset(self):
+        if getattr(self.request.user, 'role', None) == User.RoleChoices.NURSE:
+            return super().get_queryset().filter(user=self.request.user)
+        return super().get_queryset()
 
 
-class ReceptionistModelViewSet(BaseProfileModelViewSet):
+class ReceptionistModelViewSet(ModelViewSet):
     queryset = ReceptionistProfile.objects.all()
     serializer_class = ReceptionistProfileSerializer
-    permission_classes = [IsAuthenticated, IsDoctorRecepOrAdmin]
+    permission_classes = [IsAuthenticated, IsDoctorReceptOrAdmin]
+
+    def get_queryset(self):
+        if getattr(self.request.user, 'role', None) == User.RoleChoices.RECEPTIONIST:
+            return super().get_queryset().filter(user=self.request.user)
+        return super().get_queryset()
+
+
+class StaffCreateGenericAPIView(GenericAPIView):
+    serializer_class = StaffCreateSerializer
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        with transaction.atomic():
+            result = serializer.save()
+            user, profile = result["user"], result["profile"]
+            _, profile_serializer_cls = STAFF_PROFILE_MAP[user.role]
+
+        return Response({
+            "status": "success",
+            "message": f"{user.get_role_display() if hasattr(user, 'get_role_display') else user.role}",
+            "user": UserSerializer(user).data,
+            "profile": profile_serializer_cls(profile, context={"request": request}).data
+        }, status=status.HTTP_201_CREATED)

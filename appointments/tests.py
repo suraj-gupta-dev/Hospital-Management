@@ -5,7 +5,7 @@ from datetime import date, time
 from rest_framework.test import APIClient
 from rest_framework import status
 from appointments.models import Appointment, AppointmentSlot
-from hospital.models import Department, StaffDeparment
+from hospital.models import Department, StaffDepartment
 from accounts.models import User, PatientProfile, DoctorProfile
 
 
@@ -35,13 +35,13 @@ class AppointmentBookingTestCase(TestCase):
         self.patient = PatientProfile.objects.create(user=p_user)
         self.doctor = DoctorProfile.objects.create(user=d_user, specialization="General")
         self.department = Department.objects.create(name="Gastrology", code="GAST")
-        self.staffdepartment = StaffDeparment.objects.create(
+        self.staffdepartment = StaffDepartment.objects.create(
             staff=self.doctor.user,
             department=self.department
         )
 
         self.appointment_slot = AppointmentSlot.objects.create(
-            doctor=self.doctor, date=date.today(), appointment_time=time(minute=4)
+            appointment_time=time(minute=4)
         )
 
         # Create an existing appointment for today

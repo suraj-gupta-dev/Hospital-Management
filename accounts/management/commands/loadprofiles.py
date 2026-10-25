@@ -38,6 +38,10 @@ class Command(BaseCommand):
         with transaction.atomic():
             for profile in profiles:
                 username = profile.pop("user__username")
+                try:
+                    profile.pop("patient_number") # we don't need that
+                except:
+                    pass
                 user = get_object_or_404(User, username=username)
                 if user:
                     Profile = ROLE_TO_PROFILE[user.role]

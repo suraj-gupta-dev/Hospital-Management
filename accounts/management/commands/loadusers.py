@@ -3,7 +3,7 @@ from pathlib import Path
 from django.core.management import BaseCommand
 from django.contrib.auth import get_user_model
 from django.db import transaction
-from accounts.models import UserRoleChoices
+
 
 
 User = get_user_model()
@@ -20,14 +20,14 @@ class Command(BaseCommand):
             users_data = json.load(file)
 
         roles = {
-            "Hospital Admin": UserRoleChoices.HOSPITAL_ADMIN,
-            "Doctor": UserRoleChoices.DOCTOR,
-            "Nurse": UserRoleChoices.NURSE,
-            "Receptionist": UserRoleChoices.RECEPTIONIST,
-            "Lab Technician": UserRoleChoices.LAB_TECHNICIAN,
-            "Pharmacist": UserRoleChoices.PHARMACIST,
-            "Cashier": UserRoleChoices.CASHIER,
-            "Patient": UserRoleChoices.PATIENT
+            "Hospital Admin": User.RoleChoices.HOSPITAL_ADMIN,
+            "Doctor": User.RoleChoices.DOCTOR,
+            "Nurse": User.RoleChoices.NURSE,
+            "Receptionist": User.RoleChoices.RECEPTIONIST,
+            "Lab Technician": User.RoleChoices.LAB_TECHNICIAN,
+            "Pharmacist": User.RoleChoices.PHARMACIST,
+            "Cashier": User.RoleChoices.CASHIER,
+            "Patient": User.RoleChoices.PATIENT
         }
 
         User.objects.all().delete()

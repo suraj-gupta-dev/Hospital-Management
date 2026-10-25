@@ -21,7 +21,7 @@ from .serializers import (
 from accounts.models import DoctorProfile
 from .models import DoctorSchedule, Appointment, AppointmentSlot
 from .services.appointment import AppointmentServices
-from .permissions import IsDoctorRecepOrAdmin
+from .permissions import IsDoctorReceptOrAdmin
 from .filters import AppointmentFilter
 
 logger = logging.getLogger(__name__)
@@ -40,9 +40,11 @@ class AppointmentSlotModelViewSet(ModelViewSet):
 
 
 class AppointmentModelViewSet(ModelViewSet):
-    queryset = Appointment.objects.all()
+    queryset = Appointment.objects.select_related(
+            "doctor", "patient", "department", "slot"
+        )
     serializer_class = AppointmentSerializer
-    permission_classes = [IsAuthenticated, IsDoctorRecepOrAdmin]
+    permission_classes = [IsAuthenticated, IsDoctorReceptOrAdmin]
     filter_backends = [
         DjangoFilterBackend,
         SearchFilter,
@@ -60,9 +62,7 @@ class AppointmentModelViewSet(ModelViewSet):
     ordering_fields = ["appointment_date", "status", "appointment_type"]
 
     def get_queryset(self):
-        qs = super().get_queryset().select_related(
-            "doctor", "patient", "department", "slot"
-        )
+        qs = super().get_queryset()
 
         user = self.request.user
         role = getattr(user, "role", None)
@@ -81,6 +81,7 @@ class AppointmentModelViewSet(ModelViewSet):
         try:
             validated_data = serializer.validated_data
             patient = self.get_serializer_context().get("patient", None)
+            
             if patient:
                 validated_data["patient"] = patient
 
@@ -168,7 +169,7 @@ class AppointmentModelViewSet(ModelViewSet):
         available_slot_ids = AppointmentSlot.objects.filter(
             ~Q(id__in=booked_slot_ids)
         ).values_list('id', flat=True)
-        
+
         return Response({
             "doctor": f"{doctor.user.first_name} {doctor.user.last_name}",
             "date": selected_date,

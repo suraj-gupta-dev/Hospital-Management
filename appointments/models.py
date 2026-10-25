@@ -88,3 +88,29 @@ class Appointment(models.Model):
                 self.department.code
             )
         super().save(*args, **kwargs)
+
+
+# bookings/models.py
+from django.db import models
+from django.utils import timezone
+
+
+class BookingSettings(models.Model):
+    is_closed = models.BooleanField(default=False)
+    closed_from = models.DateTimeField(null=True, blank=True)
+    closed_until = models.DateTimeField(null=True, blank=True)
+    reason = models.TextField(blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    @classmethod
+    def is_closed_now(cls):
+        obj = cls.objects.first()
+        if not obj or not obj.is_closed:
+            return False
+
+        now = timezone.now()
+        if obj.closed_from and now < obj.closed_from:
+            return False
+        if obj.closed_until and now > obj.closed_until:
+            return False
+        return True

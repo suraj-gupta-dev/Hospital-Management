@@ -15,37 +15,14 @@ class IsOwnerOnly(BasePermission):
             return request.method in ["GET", "PUT", "PATCH"]
         
 
-class IsDoctorRecepOrAdmin(BasePermission):
+class IsDoctorReceptOrAdmin(BasePermission):
     def has_permission(self, request, view):
         if request.user.role == "HA":
             return True        
 
-        if request.user.role == "REC":
+        if request.user.role in ["REC", "DOC"]:
             return request.method in SAFE_METHODS
-
-        if request.user.role == "DOC":
-            return request.method in ["GET", "PUT", "PATCH"]
-
-        return False
-
-    def has_object_permission(self, request, view, obj):
-        if request.user.role == "HA":
-            return True
-
-        return request.user == obj.user
-
-class IsDocRecepNurseOrAdmin(BasePermission):
-    def has_permission(self, request, view):
-        if request.user.role == "HA":
-            return True
-
-        if request.user.role in ["REC", "NUR"]:
-            return request.method in SAFE_METHODS
-
-        if request.user.role == "DOC":
-            return request.method in ["GET", "PUT", "PATCH"]
         
-
 
 
 """------------------Reusable Base Permission------------------"""
@@ -74,16 +51,6 @@ class RoleMatrixPermission(BasePermission):
             return True
 
         return request.method in self.ROLE_METHODS.get(role, set())
-
-    def has_object_permission(self, request, view, obj):
-        role = getattr (request.user, "role", None)
-        if role == self.ADMIN_ROLE:
-            return True
-
-        if role in self.OWNER_ROLES:
-            return getattr(obj, "user", None) == request.user
-
-        return True
 
 
 class PatientAccessPermission(RoleMatrixPermission):

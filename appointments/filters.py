@@ -1,4 +1,4 @@
-from django_filters import FilterSet
+from django_filters import FilterSet, DateFilter
 from rest_framework.filters import BaseFilterBackend
 
 from .models import Appointment
@@ -11,7 +11,7 @@ class AppointmentFilter(FilterSet):
         fields = {
             "patient": ["exact"],
             "doctor": ["exact"],
-            "appointment_date": ["exact", "lte", "gte"],
+            "appointment_date": ["exact", "lte", "gte", "lt", "gt"],
             "department": ["exact", "in"],
             "status": ["exact", "iexact", "in"]
         }

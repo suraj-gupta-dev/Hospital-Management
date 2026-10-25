@@ -1,7 +1,7 @@
 from rest_framework.permissions import BasePermission, SAFE_METHODS
 
 
-class IsDoctorRecepOrAdmin(BasePermission):
+class IsDoctorReceptOrAdmin(BasePermission):
     def has_permission(self, request, view):
         role = getattr(request.user, "role", None)
         if role == "HA":

@@ -9,23 +9,23 @@ from .managers import UserManager
 
 
 
-class UserRoleChoices(models.TextChoices):
-    HOSPITAL_ADMIN = "HA", "Hospital Admin"
-    DOCTOR         = "DOC", "Doctor"
-    NURSE          = "NUR", "Nurse"
-    RECEPTIONIST   = "REC", "Receptionist"
-    LAB_TECHNICIAN = "LT", "Lab Technician"
-    PHARMACIST     = "PHA", "Pharmacist"
-    CASHIER        = "CAS",  "Cashier"
-    PATIENT        = "PAT", "Patient"
 
 
 class User(AbstractBaseUser, PermissionsMixin):
-    id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
+    class RoleChoices(models.TextChoices):
+        HOSPITAL_ADMIN = "HA", "Hospital Admin"
+        DOCTOR         = "DOC", "Doctor"
+        NURSE          = "NUR", "Nurse"
+        RECEPTIONIST   = "REC", "Receptionist"
+        LAB_TECHNICIAN = "LT", "Lab Technician"
+        PHARMACIST     = "PHA", "Pharmacist"
+        CASHIER        = "CAS",  "Cashier"
+        PATIENT        = "PAT", "Patient"
+    user_id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
     email = models.EmailField(unique=True)
     phone_number = models.CharField(max_length=12)
     username = models.CharField(max_length=50, unique=True, null=True)
-    role = models.CharField(choices=UserRoleChoices.choices, null=True)
+    role = models.CharField(choices=RoleChoices.choices, null=True)
 
     first_name = models.CharField(max_length=50)
     last_name = models.CharField(max_length=50)
@@ -46,6 +46,41 @@ class User(AbstractBaseUser, PermissionsMixin):
     def __str__(self):
         return self.email
 
+
+
+"""------ID GENERATION (shared by every profile)-----"""
+
+class PrefixIDMixin(models.Model):
+    """
+    Gives a profile a readable primary key like "DOC-3F9A12BC".
+ 
+    Usage:
+        class DoctorProfile(PrefixedIDMixin, ProfileBaseModel):
+            ID_PREFIX = "DOC"
+            doctor_id = models.CharField(max_length=50, primary_key=True, editable=False)
+ 
+    The primary key field is found through _meta.pk, so you never name it here, and
+    each model checks uniqueness against ITS OWN table (cls.objects).
+    editable=False makes DRF treat the field as read-only, so clients never send it.
+    """
+
+    ID_PREFIX = None
+
+    class Meta:
+        abstract = True
+
+    @classmethod
+    def _generate_id(cls):
+        while True:
+            value = f"{cls.ID_PREFIX}-{uuid.uuid4().hex[:8].upper()}"
+            if not cls.objects.filter(pk=value).exists():
+                return value
+
+    def save(self, *args, **kwargs):
+        if self._state.adding and not self.pk:
+            # self._meta.pk.attname, it gives the pk field name like, doctor_id, nurse_id
+            setattr(self, self._meta.pk.attname, self._generate_id())
+        super().save(*args, **kwargs)
     
 
 """------PROFILE MODELS FOR DIFFERENT ROLE-----"""
@@ -71,16 +106,18 @@ class ProfileBaseModel(models.Model):
         MaxValueValidator(999999)],
         null=True, blank=True
     )
-    emergency_contact_name = models.CharField(max_length=10, null=True, blank=True)
-    emergency_contact_phone = models.CharField(max_length=50, null=True, blank=True)
-    created_at = models.DateTimeField(auto_now=True)
-    updated_at = models.DateTimeField(auto_now_add=True)
+    emergency_contact_phone = models.CharField(max_length=12, null=True, blank=True)
+    emergency_contact_name = models.CharField(max_length=100, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         abstract = True
 
 
-class DoctorProfile(ProfileBaseModel):
+class DoctorProfile(PrefixIDMixin, ProfileBaseModel):
+    ID_PREFIX = "DOC"
+
     class Designation(models.TextChoices):
         HOD = "HOD", "Head of Department"
         SENIOR_CONSULTANT = "SENIOR_CONSULTANT", "Senior Consultant"
@@ -96,6 +133,7 @@ class DoctorProfile(ProfileBaseModel):
         VISITING = "VISITING", "Visiting"
         CONTRACT = "CONTRACT", "Contract"
 
+    doctor_id = models.CharField(max_length=50, primary_key=True, editable=False)
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="doctor_profile")
     registration_number = models.CharField(max_length=100, unique=True)
     designation = models.CharField(max_length=50, choices=Designation.choices, blank=True)
@@ -112,7 +150,9 @@ class DoctorProfile(ProfileBaseModel):
         return self.user.email
 
 
-class NurseProfile(ProfileBaseModel):
+class NurseProfile(PrefixIDMixin, ProfileBaseModel):
+    ID_PREFIX = "NUR"
+
     class Designation(models.TextChoices):
         HEAD_NURSE = "HEAD_NURSE", "Head Nurse"
         SENIOR_NURSE = "SENIOR_NURSE", "Senior Nurse"
@@ -124,6 +164,7 @@ class NurseProfile(ProfileBaseModel):
         PART_TIME = "PART_TIME", "Part Time"
         CONTRACT = "CONTRACT", "Contract"
 
+    nurse_id = models.CharField(max_length=52, primary_key=True, editable=False)
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="nurse_profile")
     registration_number = models.CharField(max_length=100, unique=True)
     designation = models.CharField(max_length=50, choices=Designation.choices, blank=True)
@@ -133,10 +174,12 @@ class NurseProfile(ProfileBaseModel):
     joining_date = models.DateField(null=True, blank=True)
 
     def __str__(self):
-            return self.user.email
+        return self.user.email
 
     
-class PatientProfile(ProfileBaseModel):
+class PatientProfile(PrefixIDMixin, ProfileBaseModel):
+    ID_PREFIX = "PAT"
+
     class BloodGroup(models.TextChoices):
         A_POSITIVE = "A+", "A+"
         A_NEGATIVE = "A-", "A-"
@@ -147,16 +190,18 @@ class PatientProfile(ProfileBaseModel):
         O_POSITIVE = "O+", "O+"
         O_NEGATIVE = "O-", "O-"
 
+    patient_id = models.CharField(max_length=50, primary_key=True, editable=False)
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="patient_profile")
-    patient_number = models.CharField(max_length=50, unique=True)
     blood_group = models.CharField(max_length=3, choices=BloodGroup.choices, blank=True)
-    occupation = models.CharField(max_length=150, blank=True)
+    occupation = models.CharField(max_length=150, blank=True)      
 
     def __str__(self):
-        return self.user.email
+            return self.user.email
+    
 
+class ReceptionistProfile(PrefixIDMixin, ProfileBaseModel):
+    ID_PREFIX = "REC"
 
-class ReceptionistProfile(ProfileBaseModel):
     class Designation(models.TextChoices):
         RECEPTION_MANAGER = "RECEPTION_MANAGER", "Reception Manager"
         SENIOR_RECEPTIONIST = "SENIOR_RECEPTIONIST", "Senior Receptionist"
@@ -168,8 +213,8 @@ class ReceptionistProfile(ProfileBaseModel):
         PART_TIME = "PART_TIME", "Part Time"
         CONTRACT = "CONTRACT", "Contract"
 
+    recept_id = models.CharField(max_length=50, primary_key=True, editable=False)
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="receptionist_profile")
-    employee_id = models.CharField(max_length=50, unique=True)
     designation = models.CharField(max_length=50, choices=Designation.choices, blank=True)
     employment_type = models.CharField(max_length=20, choices=EmploymentType.choices, blank=True)
     qualification = models.CharField(max_length=255, blank=True)
@@ -179,7 +224,9 @@ class ReceptionistProfile(ProfileBaseModel):
             return self.user.email
 
 
-class PharmacistProfile(ProfileBaseModel):
+class PharmacistProfile(PrefixIDMixin, ProfileBaseModel):
+    ID_PREFIX = "PHA"
+
     class Designation(models.TextChoices):
         PHARMACY_MANAGER = "PHARMACY_MANAGER", "Pharmacy Manager"
         PHARMACIST = "PHARMACIST", "Pharmacist"
@@ -190,6 +237,7 @@ class PharmacistProfile(ProfileBaseModel):
         PART_TIME = "PART_TIME", "Part Time"
         CONTRACT = "CONTRACT", "Contract"
 
+    pharm_id = models.CharField(max_length=50, primary_key=True, editable=False)
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="pharmacist_profile")
     license_number = models.CharField(max_length=100, unique=True)
     qualification = models.CharField(max_length=255)
@@ -202,7 +250,9 @@ class PharmacistProfile(ProfileBaseModel):
             return self.user.email
 
 
-class LabTechnicianProfile(ProfileBaseModel):
+class LabTechnicianProfile(PrefixIDMixin, ProfileBaseModel):
+    ID_PREFIX = "LT"
+
     class Designation(models.TextChoices):
         LAB_MANAGER = "LAB_MANAGER", "Lab Manager"
         SENIOR_TECHNICIAN = "SENIOR_TECHNICIAN", "Senior Lab Technician"
@@ -214,8 +264,8 @@ class LabTechnicianProfile(ProfileBaseModel):
         PART_TIME = "PART_TIME", "Part Time"
         CONTRACT = "CONTRACT", "Contract"
 
+    lab_tech_id = models.CharField(max_length=50, primary_key=True, editable=False)
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="lab_technician_profile")
-    employee_id = models.CharField(max_length=50, unique=True)
     designation = models.CharField(max_length=50, choices=Designation.choices, blank=True)
     employment_type = models.CharField(max_length=20, choices=EmploymentType.choices, blank=True)
     qualification = models.CharField(max_length=255)
@@ -227,7 +277,9 @@ class LabTechnicianProfile(ProfileBaseModel):
             return self.user.email
 
 
-class CashierProfile(ProfileBaseModel):
+class CashierProfile(PrefixIDMixin, ProfileBaseModel):
+    ID_PREFIX = "CAS"
+
     class Designation(models.TextChoices):
         FINANCE_MANAGER = "FINANCE_MANAGER", "Finance Manager"
         SENIOR_CASHIER = "SENIOR_CASHIER", "Senior Cashier"
@@ -239,8 +291,8 @@ class CashierProfile(ProfileBaseModel):
         PART_TIME = "PART_TIME", "Part Time"
         CONTRACT = "CONTRACT", "Contract"
 
+    cash_id = models.CharField(max_length=50, primary_key=True, editable=False)
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="cashier_profile")
-    employee_id = models.CharField(max_length=50, unique=True)
     designation = models.CharField(max_length=50, choices=Designation.choices, blank=True)
     employment_type = models.CharField(max_length=20, choices=EmploymentType.choices, blank=True)
     joining_date = models.DateField(null=True, blank=True)
@@ -249,7 +301,9 @@ class CashierProfile(ProfileBaseModel):
             return self.user.email
 
 
-class HospitalAdminProfile(ProfileBaseModel):
+class HospitalAdminProfile(PrefixIDMixin, ProfileBaseModel):
+    ID_PREFIX = "HA"
+
     class Designation(models.TextChoices):
         HOSPITAL_ADMINISTRATOR = (
             "HOSPITAL_ADMINISTRATOR",
@@ -268,12 +322,10 @@ class HospitalAdminProfile(ProfileBaseModel):
             "Medical Superintendent",
         )
 
+    admin_id = models.CharField(max_length=50, primary_key=True, editable=False)
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="hospital_admin_profile")
-    employee_id = models.CharField(max_length=50, unique=True)
     designation = models.CharField(max_length=50, choices=Designation.choices, null=True)
     joining_date = models.DateField(null=True, blank=True)
 
     def __str__(self):
             return self.user.email
-
-

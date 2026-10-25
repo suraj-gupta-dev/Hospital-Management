@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import DoctorSchedule, Appointment, AppointmentSlot
+from .models import DoctorSchedule, Appointment, AppointmentSlot, BookingSettings
 
 
 class AppointmentAdmin(admin.ModelAdmin):
@@ -11,3 +11,4 @@ class AppointmentAdmin(admin.ModelAdmin):
 admin.site.register(DoctorSchedule)
 admin.site.register(Appointment, AppointmentAdmin)
 admin.site.register(AppointmentSlot)
+admin.site.register(BookingSettings)
