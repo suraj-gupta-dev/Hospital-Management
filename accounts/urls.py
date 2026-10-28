@@ -10,13 +10,15 @@ urlpatterns = [
     path("login/", views.LoginGenericAPIView.as_view(), name="login"),
     path("logout/", views.LogoutAPIView.as_view(), name="logout"),
     path("change-password/", views.ChangePasswordAPIView.as_view(), name="change-password"),
-    path("staff/", views.StaffCreateGenericAPIView.as_view(), name="staff-create")
+    path("staff/", views.StaffCreateGenericAPIView.as_view(), name="staff-create"),
+    path("patients/", views.PatientListCreateAPIView.as_view(), name="patients"),
+    path("patients/<str:patient_id>/", views.PatientRetrieveUpdateAPIView.as_view(), name="patient-details"),
+    path("patients/<str:patient_id>/picture/", views.PatientPictureUpdateAPIView.as_view(), name="patient-picture"),
 ]
 
 router = DefaultRouter()
 router.register("users", views.UserModelViewSet)
 router.register("doctors", views.DoctorModelViewSet)
-router.register("patients", views.PatientModelViewSet)
 router.register("nurses", views.NurseModelViewSet)
 router.register("receptionists", views.ReceptionistModelViewSet)
 

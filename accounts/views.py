@@ -1,32 +1,38 @@
 from django.contrib.auth import authenticate, login, logout
 from django.shortcuts import get_object_or_404
 from django.db import transaction
+from django.middleware.csrf import get_token
+from django.http import JsonResponse
 
 from rest_framework.response import Response
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.views import APIView
-from rest_framework.generics import CreateAPIView, GenericAPIView
+from rest_framework.generics import CreateAPIView, GenericAPIView, ListCreateAPIView, RetrieveUpdateAPIView
 from rest_framework.viewsets import ModelViewSet
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.decorators import action
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+
 
 from .permissions import (
     IsAnonymousUser, PatientAccessPermission,
-    IsDoctorReceptOrAdmin, IsOwnerOnly,
+    IsDoctorReceptOrAdmin
 )
 
 from .serializers import (
     UserRegistrationSerializer, LoginSerializer,
-    ChangePasswordSerializer, UserSerializer,
-    DoctorProfileSerializer, PatientProfileSerializer,
-    NurseProfileSerializer, ReceptionistProfileSerializer,
-    ReceptCreatePatientSerializer, StaffCreateSerializer
+    ChangePasswordSerializer, AdminReadUserSerializer,
+    DoctorProfileSerializer, NurseProfileSerializer,
+    ReceptionistProfileSerializer, StaffCreateSerializer,
+    ProfilePictureSerializer, PatientListCreateSerializer,
+    PatientRetrieveUpdateSerializer
 )
 from .serializers import STAFF_PROFILE_MAP
 from .models import (
-    User,
-    DoctorProfile, PatientProfile,
-    NurseProfile, ReceptionistProfile,
+    User, PatientUser,
+    DoctorProfile, NurseProfile,
+    ReceptionistProfile, PatientProfile
 )
 
 
@@ -105,7 +111,7 @@ class ChangePasswordAPIView(APIView):
 
 class UserModelViewSet(ModelViewSet):
     queryset = User.objects.all()
-    serializer_class = UserSerializer
+    serializer_class = AdminReadUserSerializer
     http_method_names = ["get", "put", "patch", "delete"]
     permission_classes = [IsAuthenticated, IsAdminUser]
 
@@ -120,73 +126,111 @@ class UserModelViewSet(ModelViewSet):
         return Response(serializer.data)
 
 
-class DoctorModelViewSet(ModelViewSet):
-    queryset = DoctorProfile.objects.all()
+class PatientListCreateAPIView(ListCreateAPIView):
+    queryset = PatientUser.objects.select_related("patient_profile")
+    serializer_class = PatientListCreateSerializer
+    permission_classes = [IsAuthenticated, PatientAccessPermission]
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
+
+    def get_queryset(self):
+        if getattr(self.request.user, 'role', None) == User.RoleChoices.PATIENT:
+            return super().get_queryset().filter(pk=self.request.user.pk)
+        return super().get_queryset()
+
+
+class PatientRetrieveUpdateAPIView(RetrieveUpdateAPIView):
+    queryset = PatientUser.objects.select_related("patient_profile")
+    serializer_class = PatientRetrieveUpdateSerializer
+    permission_classes = [IsAuthenticated, PatientAccessPermission]
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
+    lookup_field = "patient_profile__patient_id"
+    lookup_url_kwarg = "patient_id"
+
+    def get_queryset(self):
+        if getattr(self.request.user, 'role', None) == User.RoleChoices.PATIENT:
+            return super().get_queryset().filter(pk=self.request.user.pk)
+        return super().get_queryset()
+    
+
+class PatientPictureUpdateAPIView(GenericAPIView):
+    serializer_class = ProfilePictureSerializer
+    parser_classes = [MultiPartParser, FormParser]
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        patient_id = self.kwargs["patient_id"]
+        patient_profile = get_object_or_404(PatientProfile, pk=patient_id)
+        patient_profile.profile_picture = serializer.validated_data["profile_picture"]
+        patient_profile.save()
+        return Response({
+            "message": "profile picture uploaded successfully."
+        }, status=status.HTTP_200_OK)
+
+
+class BaseProfileModelViewSet(ModelViewSet):
+    http_method_names = ["get", "put", "patch", "delete"]
+    USER_ROLE = None
+
+    def get_queryset(self):
+            if getattr(self.request.user, 'role', None) == self.USER_ROLE:
+                return super().get_queryset().filter(user=self.request.user)
+            return super().get_queryset()
+    
+    @action(
+        detail=True,
+        methods=["post", "delete"],
+        url_path="picture",
+        parser_classes=[MultiPartParser, FormParser],
+        serializer_class=ProfilePictureSerializer
+    )
+    def picture(self, request, pk=None):
+        profile = self.get_object()
+
+        is_owner = profile.user == request.user
+        is_admin = request.user.is_superuser or request.user.role == "HA"
+        # only the owner or an admin may change a picture
+        if not (is_owner or is_admin):
+            raise PermissionDenied("you don't have permission.")
+
+        if request.method == "DELETE":
+            if profile.profile_picture:
+                profile.profile_picture.delete(save=True)
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        serializer = ProfilePictureSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        if profile.profile_picture: # remove the old file so media doesn't pile up
+            profile.profile_picture.delete(save=False)
+        profile.profile_picture = serializer.validated_data["profile_picture"]
+        profile.save(update_fields=["profile_picture", "updated_at"])
+
+        return Response({
+            "profile_picture": request.build_absolute_uri(profile.profile_picture.url)
+        }, status=status.HTTP_200_OK)
+
+
+class DoctorModelViewSet(BaseProfileModelViewSet):
+    queryset = DoctorProfile.objects.prefetch_related("user")
     serializer_class = DoctorProfileSerializer
     permission_classes = [IsAuthenticated, IsDoctorReceptOrAdmin]
-
-    def get_queryset(self):
-        if getattr(self.request.user, 'role', None) == User.RoleChoices.DOCTOR:
-            return super().get_queryset().filter(user=self.request.user)
-        return super().get_queryset()
+    USER_ROLE = User.RoleChoices.DOCTOR
 
 
-class PatientModelViewSet(ModelViewSet):
-    queryset = PatientProfile.objects.all()
-    serializer_class = PatientProfileSerializer
-    permission_classes = [IsAuthenticated, PatientAccessPermission]
-
-    def get_queryset(self):
-        if getattr(self.request.user, 'role', None) == "PAT":
-            return super().get_queryset().filter(user=self.request.user)
-        return super().get_queryset()
-
-    def perform_create(self, serializer):
-        serializer.save(role="PAT")
-
-    def get_serializer_class(self):
-        if self.action == "create":
-            return ReceptCreatePatientSerializer
-        return super().get_serializer_class()
-
-    @action(
-        detail=False,
-        methods=["GET", "PUT"],
-        permission_classes=[IsOwnerOnly],
-        url_path="me"
-    )
-    def logged_in_patient(self, request):
-        patient = get_object_or_404(PatientProfile, user=request.user)
-
-        if request.method == "GET":
-            serializer = self.get_serializer(patient)
-            return Response(serializer.data)
-        
-        serializer = self.get_serializer(patient, data=request.data, partial=request.method=="PUT")
-        serializer.is_valid(raise_exception=True)
-        return Response(serializer.data)
-
-
-class NurseModelViewSet(ModelViewSet):
-    queryset = NurseProfile.objects.all()
+class NurseModelViewSet(BaseProfileModelViewSet):
+    queryset = NurseProfile.objects.prefetch_related("user")
     serializer_class = NurseProfileSerializer
     permission_classes = [IsAuthenticated, IsDoctorReceptOrAdmin]
-
-    def get_queryset(self):
-        if getattr(self.request.user, 'role', None) == User.RoleChoices.NURSE:
-            return super().get_queryset().filter(user=self.request.user)
-        return super().get_queryset()
+    USER_ROLE = User.RoleChoices.NURSE
 
 
-class ReceptionistModelViewSet(ModelViewSet):
-    queryset = ReceptionistProfile.objects.all()
+class ReceptionistModelViewSet(BaseProfileModelViewSet):
+    queryset = ReceptionistProfile.objects.prefetch_related("user")
     serializer_class = ReceptionistProfileSerializer
     permission_classes = [IsAuthenticated, IsDoctorReceptOrAdmin]
-
-    def get_queryset(self):
-        if getattr(self.request.user, 'role', None) == User.RoleChoices.RECEPTIONIST:
-            return super().get_queryset().filter(user=self.request.user)
-        return super().get_queryset()
+    USER_ROLE = User.RoleChoices.RECEPTIONIST
 
 
 class StaffCreateGenericAPIView(GenericAPIView):
@@ -205,6 +249,7 @@ class StaffCreateGenericAPIView(GenericAPIView):
         return Response({
             "status": "success",
             "message": f"{user.get_role_display() if hasattr(user, 'get_role_display') else user.role}",
-            "user": UserSerializer(user).data,
+            "user": AdminReadUserSerializer(user).data,
             "profile": profile_serializer_cls(profile, context={"request": request}).data
         }, status=status.HTTP_201_CREATED)
+

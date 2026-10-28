@@ -94,7 +94,7 @@ class ProfileBaseModel(models.Model):
 
     date_of_birth = models.DateField(null=True, blank=True)
     gender = models.CharField(choices=GENDER_CHOICES, max_length=1)
-    profile_picture = models.ImageField(upload_to="uploads/images", null=True, blank=True)
+    profile_picture = models.ImageField(upload_to="images", null=True, blank=True)
 
     address_line_1 = models.CharField(max_length=100, null=True, blank=True)
     address_line_2 = models.CharField(max_length=100, null=True, blank=True)
@@ -329,3 +329,19 @@ class HospitalAdminProfile(PrefixIDMixin, ProfileBaseModel):
 
     def __str__(self):
             return self.user.email
+
+
+class PatientUser(User):
+    class Meta:
+        proxy = True
+
+    class Manager(UserManager):
+        def get_queryset(self):
+            return super().get_queryset().filter(role=User.RoleChoices.PATIENT)
+
+    def save(self, *args, **kwargs):
+        if self._state.adding:
+            self.role = User.RoleChoices.PATIENT
+        super().save(*args, **kwargs)
+
+    objects = Manager()

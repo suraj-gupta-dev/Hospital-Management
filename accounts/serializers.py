@@ -5,7 +5,7 @@ from django.db import transaction
 from rest_framework import serializers
 
 from .models import (
-    User,
+    User, PatientUser,
     DoctorProfile, PatientProfile,
     NurseProfile, ReceptionistProfile,
     PharmacistProfile, LabTechnicianProfile,
@@ -23,19 +23,12 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             "email",
+            "phone_number",
             "first_name",
             "last_name",
             "password",
             "confirm_password",
         ]
-
-    # def validate_username(self, value):
-    #     """Validate username for allowed characters"""
-    #     if not re.match(r'^[\w.@+-]+$', value):
-    #         raise serializers.ValidationError(
-    #             "Username can only contain letters, numbers, and @/./+/-/_ characters."
-    #         )
-    #     return value
 
     def validate(self, attrs):
         """Validate password match and additional constraints"""
@@ -55,7 +48,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data.pop("confirm_password")
-        user = User.objects.create_user(**validated_data)
+        user = User.objects.create_user_with_profile(**validated_data, profile={})
         return user
     
 
@@ -108,7 +101,7 @@ class ChangePasswordSerializer(serializers.Serializer):
         return user
 
 
-class UserSerializer(serializers.ModelSerializer):
+class AdminReadUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
@@ -122,6 +115,74 @@ class UserSerializer(serializers.ModelSerializer):
         ]
 
 
+class PatientProfileSerializer(serializers.ModelSerializer):
+    profile_picture = serializers.ImageField(read_only=True)
+    
+    class Meta:
+        model = PatientProfile
+        fields = [
+            "date_of_birth", "gender",
+            "patient_id", "blood_group",
+            "gender", "profile_picture",
+            "address_line_1", "address_line_2",
+            "city", "state",
+            "country", "postal_code",
+            "emergency_contact_phone",
+            "emergency_contact_name"
+        ]
+
+
+class PatientListCreateSerializer(serializers.ModelSerializer):
+    patient_profile = PatientProfileSerializer()
+    password = serializers.CharField(style={"input_type": "password"}, required=True, write_only=True)
+    confirm_password = serializers.CharField(style={"input_type": "password"}, required=True, write_only=True)
+    
+    class Meta:
+        model = PatientUser
+        fields = [
+            "first_name", "last_name", "user_id", "phone_number",
+            "email", "password", "confirm_password", "patient_profile"
+        ]
+        read_only_fields = ["user_id"]
+
+    def validate(self, attrs):
+            """Validate password match and additional constraints"""
+            # Check password match
+            if attrs['password'] != attrs.pop('confirm_password'):
+                raise serializers.ValidationError({
+                    "password": "Password fields didn't match."
+                })
+            return attrs
+    
+    def create(self, validated_data):
+        profile = validated_data.pop("patient_profile")
+        user = PatientUser.objects.create_user_with_profile(**validated_data, profile=profile)
+        return user
+
+
+class PatientRetrieveUpdateSerializer(serializers.ModelSerializer):
+    patient_profile = PatientProfileSerializer()
+    
+    class Meta:
+        model = PatientUser
+        fields = ["first_name", "last_name", "user_id", "phone_number", "email", "patient_profile"]
+
+    @transaction.atomic
+    def update(self, instance, validated_data):
+            profile_data = validated_data.pop("patient_profile")
+    
+            for attr, value in validated_data.items():
+                setattr(instance, attr, value)
+    
+            instance.save()
+            if profile_data:
+                profile = instance.patient_profile
+                for attr, value in profile_data.items():
+                    setattr(profile, attr, value)
+                profile.save()
+            return instance
+
+
 class BaseProfileSerializer(serializers.ModelSerializer):
     user_id = serializers.CharField(source="user.user_id", read_only=True)
     first_name = serializers.CharField(source="user.first_name", read_only=True)
@@ -133,15 +194,13 @@ class BaseProfileSerializer(serializers.ModelSerializer):
         fields = [
             "user_id", "first_name", "last_name", "email", "phone_number",
             "date_of_birth", "gender",
-            "profile_picture", "address_line_1",
+            "address_line_1",
             "address_line_2", "city",
             "state", "country",
             "postal_code", "emergency_contact_name",
-            "emergency_contact_phone", "created_at",
-            "updated_at"
+            "emergency_contact_phone",
         ]
         read_only_fields = [
-            "profile_picture",
             "created_at",
             "updated_at",
         ]
@@ -155,58 +214,6 @@ class DoctorProfileSerializer(BaseProfileSerializer):
             "qualification", "experience_years",
             "consultation_fee", "bio", "is_available",
         ]
-
-
-
-class PatientProfileSerializer(BaseProfileSerializer):
-    full_name = serializers.SerializerMethodField(read_only=True)
-
-    class Meta(BaseProfileSerializer.Meta):
-        model = PatientProfile
-        fields = ["patient_id"] + BaseProfileSerializer.Meta.fields + [
-            "blood_group", "full_name"
-        ]
-
-    def get_full_name(self, obj):
-        return f"{obj.user.first_name} {obj.user.last_name}"
-    
-
-class ReceptCreatePatientSerializer(serializers.ModelSerializer):
-    class PatientProfileSerializer(serializers.ModelSerializer):
-        class Meta:
-            model = PatientProfile
-            fields = [
-                "date_of_birth", "gender",
-                "patient_id", "blood_group",
-                "gender", "profile_picture",
-                "address_line_1", "address_line_2",
-                "city", "state",
-                "country", "postal_code",
-                "emergency_contact_phone",
-                "emergency_contact_name"
-            ]
-    patient_profile = PatientProfileSerializer()
-    password = serializers.CharField(style={"input_type": "password"}, required=True, write_only=True)
-    confirm_password = serializers.CharField(style={"input_type": "password"}, required=True, write_only=True)
-
-    class Meta:
-        model = User
-        fields = ["first_name", "last_name", "email", "password", "confirm_password", "patient_profile"]
-
-    def validate(self, attrs):
-        """Validate password match and additional constraints"""
-        # Check password match
-        if attrs['password'] != attrs.pop('confirm_password'):
-            raise serializers.ValidationError({
-                "password": "Password fields didn't match."
-            })
-        return attrs
-
-    def create(self, validated_data):
-        profile = validated_data.pop("patient_profile")
-        print(validated_data)
-        user = User.objects.create_user_with_profile(**validated_data, profile=profile)
-        return user
 
 
 class NurseProfileSerializer(BaseProfileSerializer):
@@ -236,7 +243,7 @@ class PharmacistProfileSerializer(BaseProfileSerializer):
 
 
 class LabTechnicianProfileSerializer(BaseProfileSerializer):
-    class MetaMeta(BaseProfileSerializer.Meta):
+    class Meta(BaseProfileSerializer.Meta):
         model = LabTechnicianProfile
         fields = ["lab_tech_id"] + BaseProfileSerializer.Meta.fields + [
             "qualification",
@@ -245,7 +252,7 @@ class LabTechnicianProfileSerializer(BaseProfileSerializer):
 
 
 class CashierProfileSerializer(BaseProfileSerializer):
-    class MetaMeta(BaseProfileSerializer.Meta):
+    class Meta(BaseProfileSerializer.Meta):
         model = CashierProfile
         fields = ["cash_id"] + BaseProfileSerializer.Meta.fields + [
             "joining_date",
@@ -330,9 +337,23 @@ class StaffCreateSerializer(serializers.Serializer):
         profile_model, _ = STAFF_PROFILE_MAP[role]
 
         # Assumes UserManager.create_user(email, password, **extra_fields)
-        user = User.objects.create(**validated_data, is_verified=True)  # created by an admin, so no email verification step
+        user = User.objects.create_user(**validated_data, is_verified=True)  # created by an admin, so no email verification step
         profile = profile_model.objects.create(user=user, **profile)
         return {"user": user, "profile": profile}
     
 
-    
+class ProfilePictureSerializer(serializers.Serializer):
+    MAX_SIZE = 2 * 1024 * 1024 # 2 MB
+    ALLOWED_TYPES = {'.jpg', '.jpeg', '.png'}
+
+    profile_picture = serializers.ImageField()
+
+    def validate_profile_image(self, image):
+        if image.size > self.MAX_SIZE:
+            raise serializers.ValidationError("Image must be 2 MB or smaller.")
+
+        ext = image.name.lower().rsplit(".", 1)[-1]
+        if f".{ext}" not in self.ALLOWED_TYPES:
+            raise serializers.ValidationError(f"Only {', '.join(self.ALLOWED_TYPES)} files are allowed.")
+
+        return image

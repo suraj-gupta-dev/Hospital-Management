@@ -57,7 +57,7 @@ class PatientAccessPermission(RoleMatrixPermission):
     ROLE_METHODS = {
         "HA":  {"GET", "POST", "PUT", "PATCH", "DELETE"},
         "REC": {"GET", "POST", "PUT", "PATCH"},
-        "PAT": {"GET", "PUT", "PATCH"},
+        "PAT": {"GET"},
         "DOC": {"GET", "PUT", "PATCH"},
         "NUR": {"GET"},
         "LT":  {"GET"},
