@@ -1,8 +1,6 @@
 from django.contrib.auth import authenticate, login, logout
 from django.shortcuts import get_object_or_404
 from django.db import transaction
-from django.middleware.csrf import get_token
-from django.http import JsonResponse
 
 from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
@@ -13,7 +11,12 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import SearchFilter, OrderingFilter
+from rest_framework.authtoken.views import ObtainAuthToken
+from rest_framework.authtoken.models import Token
 
+from .filters import PatientFilterSet, DoctorFilterSet
 
 from .permissions import (
     IsAnonymousUser, PatientAccessPermission,
@@ -22,20 +25,20 @@ from .permissions import (
 
 from .serializers import (
     UserRegistrationSerializer, LoginSerializer,
-    ChangePasswordSerializer, AdminReadUserSerializer,
+    ChangePasswordSerializer,
     DoctorProfileSerializer, NurseProfileSerializer,
     ReceptionistProfileSerializer, StaffCreateSerializer,
     ProfilePictureSerializer, PatientListCreateSerializer,
     PatientRetrieveUpdateSerializer
 )
-from .serializers import STAFF_PROFILE_MAP
+
 from .models import (
     User, PatientUser,
     DoctorProfile, NurseProfile,
     ReceptionistProfile, PatientProfile
 )
 
-
+from .serializers import STAFF_PROFILE_MAP
 
 
 
@@ -109,28 +112,31 @@ class ChangePasswordAPIView(APIView):
         }, status=status.HTTP_400_BAD_REQUEST)
 
 
-class UserModelViewSet(ModelViewSet):
-    queryset = User.objects.all()
-    serializer_class = AdminReadUserSerializer
-    http_method_names = ["get", "put", "patch", "delete"]
-    permission_classes = [IsAuthenticated, IsAdminUser]
+class CustomAuthToken(ObtainAuthToken):
+    def post(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
 
-    @action(
-        methods=["get"],
-        detail=False,
-        permission_classes=[IsAuthenticated],
-        url_path="me"
-    )
-    def me(self, request):
-        serializer = self.get_serializer(request.user)
-        return Response(serializer.data)
+        user = serializer.validated_data["user"]
+        token, created = Token.objects.get_or_create(user=user)
+        return Response({
+            "token": token.key,
+            "user_id": user.user_id,
+            "email": user.email
+        })
 
 
 class PatientListCreateAPIView(ListCreateAPIView):
     queryset = PatientUser.objects.select_related("patient_profile")
     serializer_class = PatientListCreateSerializer
     permission_classes = [IsAuthenticated, PatientAccessPermission]
-    parser_classes = [JSONParser, MultiPartParser, FormParser]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_class = PatientFilterSet
+    ordering_fields = ["patient_profile__created_at", "patient_profile__updated_at"]
+    search_fields = [
+        "first_name", "last_name", "email",
+        "patient_profile__address_line_1", "patient_profile__address_line_2"
+    ]
 
     def get_queryset(self):
         if getattr(self.request.user, 'role', None) == User.RoleChoices.PATIENT:
@@ -142,7 +148,6 @@ class PatientRetrieveUpdateAPIView(RetrieveUpdateAPIView):
     queryset = PatientUser.objects.select_related("patient_profile")
     serializer_class = PatientRetrieveUpdateSerializer
     permission_classes = [IsAuthenticated, PatientAccessPermission]
-    parser_classes = [JSONParser, MultiPartParser, FormParser]
     lookup_field = "patient_profile__patient_id"
     lookup_url_kwarg = "patient_id"
 
@@ -216,6 +221,10 @@ class DoctorModelViewSet(BaseProfileModelViewSet):
     queryset = DoctorProfile.objects.prefetch_related("user")
     serializer_class = DoctorProfileSerializer
     permission_classes = [IsAuthenticated, IsDoctorReceptOrAdmin]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_class = DoctorFilterSet
+    search_fields = ["designation", "employment_type", "specialization"]
+    ordering_fields = ["specialization", "consultation_fee", "experience_years"]
     USER_ROLE = User.RoleChoices.DOCTOR
 
 
@@ -249,7 +258,6 @@ class StaffCreateGenericAPIView(GenericAPIView):
         return Response({
             "status": "success",
             "message": f"{user.get_role_display() if hasattr(user, 'get_role_display') else user.role}",
-            "user": AdminReadUserSerializer(user).data,
-            "profile": profile_serializer_cls(profile, context={"request": request}).data
+            "data": profile_serializer_cls(profile, context={"request": request}).data
         }, status=status.HTTP_201_CREATED)
 

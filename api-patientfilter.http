@@ -1,0 +1,33 @@
+POST http://localhost:8000/api/login/ HTTP/1.1
+Content-Type: application/json
+
+{
+    "email": "admin2@medicare.com",
+    "password": "Admin@1234"
+}
+
+###
+
+GET http://localhost:8000/api/logout/ HTTP/1.1
+
+###
+
+GET http://localhost:8000/api/patients/?gender=M HTTP/1.1
+
+###
+
+GET http://localhost:8000/api/patients/?search=gupta HTTP/1.1
+Content-Type: application/json
+Authorization: Token 37b39590483ca88653c9985fff43ebefd646d5c5
+
+###
+
+WmRUmA0G7a5lLjDaNsW8Pe2B1W6lvdlK
+###
+POST http://localhost:8000/api/token/ HTTP/1.1
+Content-Type: application/json
+
+{
+    "email": "admin2@medicare.com",
+    "password": "Admin@1234"
+}

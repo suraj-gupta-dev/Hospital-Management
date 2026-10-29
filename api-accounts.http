@@ -55,15 +55,17 @@ Content-Type: application/json
 X-CSRFToken: 5yMPf1vIRrGoFaHLng7Qbgmo9y3AoF57
 
 {
-    "role": "CAS",
-    "email": "cash2.lakshmi@money.com",
-    "first_name": "Lakshmi",
-    "last_name": "Pati",
-    "phone_number": "8700140547",
-    "password": "Cash@1234",
-    "confirm_password": "Cash@1234",
+    "role": "PHA",
+    "email": "pharma5.sugriva@medicine.com",
+    "first_name": "Maha5",
+    "last_name": "Bali5",
+    "phone_number": "8785040547",
+    "password": "Pharma@1234",
+    "confirm_password": "Pharma@1234",
     "profile": {
-        "gender": "M"
+        "gender": "M",
+        "license_number": "PHAS564-254KJ",
+        "qualification": "Something"
     }
 }
 

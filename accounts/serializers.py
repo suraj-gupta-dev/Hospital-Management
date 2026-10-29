@@ -101,23 +101,9 @@ class ChangePasswordSerializer(serializers.Serializer):
         return user
 
 
-class AdminReadUserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = [
-            "user_id",
-            "email",
-            "phone_number",
-            "username",
-            "role",
-            "first_name",
-            "last_name",
-        ]
-
-
 class PatientProfileSerializer(serializers.ModelSerializer):
     profile_picture = serializers.ImageField(read_only=True)
-    
+
     class Meta:
         model = PatientProfile
         fields = [
