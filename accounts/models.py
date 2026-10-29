@@ -23,7 +23,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     user_id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
     email = models.EmailField(unique=True)
     phone_number = models.CharField(max_length=12)
-    username = models.CharField(max_length=50, unique=True, null=True)
+    username = models.CharField(max_length=50, default="")
     role = models.CharField(choices=RoleChoices.choices, null=True)
 
     first_name = models.CharField(max_length=50)
@@ -59,18 +59,18 @@ class ProfileBaseModel(models.Model):
     gender = models.CharField(choices=GENDER_CHOICES, max_length=1)
     profile_picture = models.ImageField(upload_to="images", null=True, blank=True)
 
-    address_line_1 = models.CharField(max_length=100, null=True, blank=True)
-    address_line_2 = models.CharField(max_length=100, null=True, blank=True)
-    city = models.CharField(max_length=30, null=True, blank=True)
-    state = models.CharField(max_length=30, null=True, blank=True)
-    country = models.CharField(max_length=30, null=True, blank=True)
+    address_line_1 = models.CharField(max_length=100, default="")
+    address_line_2 = models.CharField(max_length=100, default="")
+    city = models.CharField(max_length=30, default="")
+    state = models.CharField(max_length=30, default="")
+    country = models.CharField(max_length=30, default="")
     postal_code = models.IntegerField(
         validators=[MinValueValidator(100000),
         MaxValueValidator(999999)],
         null=True, blank=True
     )
-    emergency_contact_phone = models.CharField(max_length=12, null=True, blank=True)
-    emergency_contact_name = models.CharField(max_length=100, null=True, blank=True)
+    emergency_contact_phone = models.CharField(max_length=12, default="")
+    emergency_contact_name = models.CharField(max_length=100, default="")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
