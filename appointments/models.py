@@ -1,5 +1,6 @@
 from django.db import models
 from django.db.models import Q
+from django.utils import timezone
 
 from hospital.models import Department
 from accounts.models import DoctorProfile, PatientProfile
@@ -88,11 +89,6 @@ class Appointment(models.Model):
                 self.department.code
             )
         super().save(*args, **kwargs)
-
-
-# bookings/models.py
-from django.db import models
-from django.utils import timezone
 
 
 class BookingSettings(models.Model):

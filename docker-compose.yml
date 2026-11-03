@@ -14,6 +14,16 @@ services:
     ports:
       - 5433:5432
 
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+
+    environment:
+      - REDIS_PASSWORD=redisredis
+
+    ports:
+      - 6379:6379
+
 volumes:
   hospital_data:
     name: hospital_data

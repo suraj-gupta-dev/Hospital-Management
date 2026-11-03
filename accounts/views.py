@@ -1,6 +1,8 @@
 from django.contrib.auth import authenticate, login, logout
 from django.shortcuts import get_object_or_404
 from django.db import transaction
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
 
 from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
@@ -10,11 +12,12 @@ from rest_framework.viewsets import ModelViewSet
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.decorators import action
-from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from rest_framework.parsers import MultiPartParser, FormParser
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.authtoken.models import Token
+from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 
 from .filters import PatientFilterSet, DoctorFilterSet
 
@@ -130,6 +133,7 @@ class PatientListCreateAPIView(ListCreateAPIView):
     queryset = PatientUser.objects.select_related("patient_profile")
     serializer_class = PatientListCreateSerializer
     permission_classes = [IsAuthenticated, PatientAccessPermission]
+    throttle_classes = [AnonRateThrottle, UserRateThrottle]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_class = PatientFilterSet
     ordering_fields = ["patient_profile__created_at", "patient_profile__updated_at"]
