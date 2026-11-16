@@ -28,6 +28,7 @@ CREATED_APPS = [
     "accounts",
     "hospital",
     "appointments",
+    "auditlogs",
 ]
 
 # THIRD_PARTY_APPS = [
