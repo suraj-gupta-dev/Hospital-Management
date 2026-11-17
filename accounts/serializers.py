@@ -107,7 +107,7 @@ class PatientProfileSerializer(serializers.ModelSerializer):
         fields = [
             "date_of_birth", "gender",
             "patient_id", "blood_group",
-            "gender", "profile_picture",
+            "profile_picture",
             "address_line_1", "address_line_2",
             "city", "state",
             "country", "postal_code",
@@ -332,7 +332,7 @@ class ProfilePictureSerializer(serializers.Serializer):
 
     profile_picture = serializers.ImageField()
 
-    def validate_profile_image(self, image):
+    def validate_profile_picture(self, image):
         if image.size > self.MAX_SIZE:
             raise serializers.ValidationError("Image must be 2 MB or smaller.")
 

@@ -1,4 +1,5 @@
 import uuid
+from django.utils import timezone
 
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
@@ -308,3 +309,18 @@ class PatientUser(User):
         super().save(*args, **kwargs)
 
     objects = Manager()
+
+
+class FailedLoginAttempt(models.Model):
+    email = models.EmailField(unique=True)
+    failed_attempts = models.PositiveSmallIntegerField(default=0)
+    locked_until = models.DateTimeField(null=True, blank=True)
+    last_failed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def is_locked(self):
+        return bool(self.locked_until and self.locked_until > timezone.now())
+
+    def __str__(self):
+        return self.email

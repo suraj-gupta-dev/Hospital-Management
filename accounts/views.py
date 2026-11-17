@@ -42,6 +42,7 @@ from .models import (
 )
 
 from .serializers import STAFF_PROFILE_MAP
+from .authentication import authenticate_with_lockout
 
 from auditlogs.mixins import AuditLogMixin
 from auditlogs.services import AuditLogsServices
@@ -83,12 +84,18 @@ class LoginGenericAPIView(GenericAPIView):
     permission_classes = [IsAnonymousUser]
 
     def post(self, request):
-        print(request.META)
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         email = serializer.validated_data["email"]
         password = serializer.validated_data["password"]
-        user = authenticate(email=email, password=password)
+        user, is_locked = authenticate_with_lockout(email=email, password=password)
+
+        if is_locked:
+            return Response({
+                "error": "Account temporarily locked. Please try again after 15 minutes."
+            }, status=status.HTTP_423_LOCKED
+        )
+        
         if user is not None:
             login(request, user)
             AuditLogsServices.create_audit_log(
