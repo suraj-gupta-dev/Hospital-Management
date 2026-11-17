@@ -5,11 +5,9 @@ from django.db import transaction
 from rest_framework import serializers
 
 from .models import (
-    User, PatientUser,
-    DoctorProfile, PatientProfile,
-    NurseProfile, ReceptionistProfile,
-    PharmacistProfile, LabTechnicianProfile,
-    CashierProfile
+    User, PatientUser, DoctorProfile, PatientProfile,
+    NurseProfile, ReceptionistProfile, PharmacistProfile,
+    LabTechnicianProfile, CashierProfile
 )
 
 

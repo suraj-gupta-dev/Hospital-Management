@@ -32,7 +32,7 @@ class AuditLogsServices:
         """
         if not request:
             return None
-        return request.Meta.get("REMOTE_ADDR")
+        return request.META.get("REMOTE_ADDR")
 
     @staticmethod
     def get_model_snapshot(instance):
@@ -84,7 +84,7 @@ class AuditLogsServices:
         """
         Centralized audit log creation.
         """
-        if action is None and request:
+        if actor is None and request:
             if request.user.is_authenticated:
                 actor = request.user
 
@@ -112,6 +112,7 @@ class AuditLogsServices:
                 object_id=object_id,
                 object_repr=object_repr,
                 changes=changes or {},
+                ip_address=AuditLogsServices.get_client_ip(request),
                 user_agent=(
                     request.META.get("HTTP_USER_AGENT")[:1000]
                     if request else ""

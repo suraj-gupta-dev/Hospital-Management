@@ -43,6 +43,10 @@ from .models import (
 
 from .serializers import STAFF_PROFILE_MAP
 
+from auditlogs.mixins import AuditLogMixin
+from auditlogs.services import AuditLogsServices
+from auditlogs.models import AuditLog
+
 
 
 
@@ -64,6 +68,14 @@ class UserCreateAPIView(CreateAPIView):
                 'full_name': user.full_name if hasattr(user, 'full_name') else f"{user.first_name} {user.last_name}".strip()
             }
         }, status=status.HTTP_201_CREATED)
+
+    def perform_create(self, serializer):
+        instance = self.get_object()
+        AuditLogsServices.log_model_create(
+            request=self.request,
+            instance=instance
+        )
+        return instance
     
 
 class LoginGenericAPIView(GenericAPIView):
@@ -71,6 +83,7 @@ class LoginGenericAPIView(GenericAPIView):
     permission_classes = [IsAnonymousUser]
 
     def post(self, request):
+        print(request.META)
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         email = serializer.validated_data["email"]
@@ -78,7 +91,18 @@ class LoginGenericAPIView(GenericAPIView):
         user = authenticate(email=email, password=password)
         if user is not None:
             login(request, user)
+            AuditLogsServices.create_audit_log(
+                request=request,
+                actor=user,
+                action=AuditLog.ActionChoices.LOGIN,
+                description="User successfully logged in."
+            )
             return Response({"message": "Successfully logged in.", "email": email})
+        AuditLogsServices.create_audit_log(
+            request=request,
+            action=AuditLog.ActionChoices.FAILED_LOGIN,
+            description="Failed login attempt."
+        )
         return Response({"error": "Invalid credential"}, status=status.HTTP_401_UNAUTHORIZED)
 
 
@@ -86,6 +110,11 @@ class LogoutAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        AuditLogsServices.create_audit_log(
+            request=request,
+            action=AuditLog.ActionChoices.LOGOUT,
+            description="User successfully logged out."
+        )
         logout(request)
         return Response({"message": "Successfully LogOut!"})
 
@@ -102,13 +131,25 @@ class ChangePasswordAPIView(APIView):
         if serializer.is_valid():
             serializer.save()
 
+            AuditLogsServices.create_audit_log(
+                request=request,
+                action=AuditLog.ActionChoices.PASSWORD_CHANGE,
+                description="User changes their password."
+            )
+
             logout(request)
 
             return Response({
                     'status': 'success',
                     'message': 'Password changed successfully. Please login again with your new password.'
                 }, status=status.HTTP_200_OK)
-        
+
+        AuditLogsServices.create_audit_log(
+            request=request,
+            action=AuditLog.ActionChoices.PASSWORD_CHANGE,
+            description="Failed to change password."
+        )
+
         return Response({
             'status': 'error',
             'errors': serializer.errors
@@ -129,7 +170,7 @@ class CustomAuthToken(ObtainAuthToken):
         })
 
 
-class PatientListCreateAPIView(ListCreateAPIView):
+class PatientListCreateAPIView(AuditLogMixin, ListCreateAPIView):
     queryset = PatientUser.objects.select_related("patient_profile")
     serializer_class = PatientListCreateSerializer
     permission_classes = [IsAuthenticated, PatientAccessPermission]
@@ -148,7 +189,7 @@ class PatientListCreateAPIView(ListCreateAPIView):
         return super().get_queryset()
 
 
-class PatientRetrieveUpdateAPIView(RetrieveUpdateAPIView):
+class PatientRetrieveUpdateAPIView(AuditLogMixin, RetrieveUpdateAPIView):
     queryset = PatientUser.objects.select_related("patient_profile")
     serializer_class = PatientRetrieveUpdateSerializer
     permission_classes = [IsAuthenticated, PatientAccessPermission]
@@ -173,12 +214,19 @@ class PatientPictureUpdateAPIView(GenericAPIView):
         patient_profile = get_object_or_404(PatientProfile, pk=patient_id)
         patient_profile.profile_picture = serializer.validated_data["profile_picture"]
         patient_profile.save()
+
+        AuditLogsServices.create_audit_log(
+            request=request,
+            action=AuditLog.ActionChoices.PROFILE_PICTURE_UPDATE,
+            description="User changes profile picture."
+        )
+        
         return Response({
             "message": "profile picture uploaded successfully."
         }, status=status.HTTP_200_OK)
 
 
-class BaseProfileModelViewSet(ModelViewSet):
+class BaseProfileModelViewSet(AuditLogMixin, ModelViewSet):
     http_method_names = ["get", "put", "patch", "delete"]
     USER_ROLE = None
 
