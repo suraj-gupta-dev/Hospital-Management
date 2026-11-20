@@ -17,7 +17,7 @@ env.read_env(BASE_DIR / ".env")
 SECRET_KEY = env('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = env("DEBUG", bool, default=True)
+DEBUG = env.bool("DEBUG", default=True)
 
 ALLOWED_HOSTS = []
 
@@ -217,4 +217,31 @@ CACHES = {
             "PASSWORD": "redisredis",
         }
     }
+}
+
+MAILERS = {
+    "default": {
+        "BACKEND": "django.core.mail.backends.smtp.EmailBackend",
+        "OPTIONS": {
+            "host": env("EMAIL_HOST"),
+            "port": env.int("EMAIL_PORT", default=587),
+            "use_tls": env.bool("EMAIL_USE_TLS", default=True),
+            "username": env("EMAIL_ACCOUNT_ID"),
+            "password": env("EMAIL_API_KEY"),
+            "timeout": 10,
+        },
+    },
+    "notifications": {
+        "BACKEND": "example.third.party.EmailBackend",
+        "OPTIONS": {
+            "api_key": env("THIRD_PARTY_API_KEY"),
+            "region": "eu",
+        },
+    },
+    "admin": {
+        "BACKEND": "django.core.mail.backends.smtp.EmailBackend",
+        "OPTIONS": {
+            "host": "localhost",
+        },
+    },
 }

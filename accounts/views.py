@@ -254,6 +254,7 @@ class BaseProfileModelViewSet(AuditLogMixin, ModelViewSet):
 
         is_owner = profile.user == request.user
         is_admin = request.user.is_superuser or request.user.role == "HA"
+        
         # only the owner or an admin may change a picture
         if not (is_owner or is_admin):
             raise PermissionDenied("you don't have permission.")

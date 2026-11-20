@@ -1,11 +1,13 @@
-import django_filters
+from django_filters import FilterSet
 
 from .models import AuditLog
 
 
-class AuditLogFilterSet(django_filters.FilterSet):
+class AuditLogFilterSet(FilterSet):
     class Meta:
         model = AuditLog
         fields = {
             "action": ["exact", "iexact"],
+            "actor": ["exact"],
+            "content_type": ["exact"]
         }
