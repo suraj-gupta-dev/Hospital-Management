@@ -219,6 +219,8 @@ CACHES = {
     }
 }
 
+DEFAULT_FROM_EMAIL=env("EMAIL_ACCOUNT_ID")
+
 MAILERS = {
     "default": {
         "BACKEND": "django.core.mail.backends.smtp.EmailBackend",

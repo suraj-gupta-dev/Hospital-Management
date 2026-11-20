@@ -10,6 +10,7 @@ from .models import (
     LabTechnicianProfile, CashierProfile
 )
 
+from .utils import StaffEmailVerificationService as SEV
 
 
 
@@ -321,8 +322,15 @@ class StaffCreateSerializer(serializers.Serializer):
         profile_model, _ = STAFF_PROFILE_MAP[role]
 
         # Assumes UserManager.create_user(email, password, **extra_fields)
-        user = User.objects.create_user(**validated_data, is_verified=True)  # created by an admin, so no email verification step
+        # user = User.objects.create_user(**validated_data, is_verified=True)  # created by an admin, so no email verification step
+        user = User.objects.create_user(**validated_data)  # verify through email verification.
         profile = profile_model.objects.create(user=user, **profile)
+
+        # Send the email only after the database transaction commits.
+        request = self.context["request"]
+        transaction.on_commit(
+            lambda: SEV.send_verification_email(request, user)
+        )
         return {"user": user, "profile": profile}
     
 

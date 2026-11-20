@@ -1,8 +1,9 @@
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import login, logout
 from django.shortcuts import get_object_or_404
 from django.db import transaction
-from django.utils.decorators import method_decorator
-from django.views.decorators.cache import cache_page
+from django.core import signing
+from django.core.exceptions import ObjectDoesNotExist
+
 
 from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
@@ -10,7 +11,7 @@ from rest_framework.views import APIView
 from rest_framework.generics import CreateAPIView, GenericAPIView, ListCreateAPIView, RetrieveUpdateAPIView
 from rest_framework.viewsets import ModelViewSet
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser, FormParser
 from django_filters.rest_framework import DjangoFilterBackend
@@ -47,6 +48,9 @@ from .authentication import authenticate_with_lockout
 from auditlogs.mixins import AuditLogMixin
 from auditlogs.services import AuditLogsServices
 from auditlogs.models import AuditLog
+
+from .utils import StaffEmailVerificationService as SEV
+
 
 
 
@@ -321,3 +325,49 @@ class StaffCreateGenericAPIView(GenericAPIView):
             "data": profile_serializer_cls(profile, context={"request": request}).data
         }, status=status.HTTP_201_CREATED)
 
+
+class StaffEmailVerificationAPIView(APIView):
+    permission_classes = [AllowAny]
+
+    # Your frontend should send a POST request to this endpoint after the staff member clicks the verification link.
+    def post(self, request):
+        token = request.query_params.get("token")
+
+        if not token:
+            return Response({
+                "error": "Verification token is required."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            payload = signing.loads(
+                token,
+                salt=SEV.VERIFICATION_SALT,
+                max_age=SEV.VERIFICATION_MAX_AGE
+            )
+            user = User.objects.get(user_id=payload["user_id"])
+
+        except (signing.BadSignature, User.DoesNotExist, KeyError, TypeError):
+            return Response({
+                "error": "Email verification is not required for patients."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Patients do not require email verification.
+        if user.role == User.RoleChoices.PATIENT:
+            return Response(
+                {"error": "Email verification is not required for patients."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if user.is_verified:
+            return Response(
+                {"message": "Email is already verified."},
+                status=status.HTTP_200_OK
+            )
+
+        user.is_verified = True
+        user.save(update_fields=["is_verified", "updated_at"])
+
+        return Response(
+            {"message": "Email verified successfully. You can now log in."},
+            status=status.HTTP_200_OK
+        )

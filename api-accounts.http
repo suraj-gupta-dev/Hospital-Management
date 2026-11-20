@@ -52,21 +52,25 @@ Content-Type: application/json
 
 POST http://localhost:8000/api/staff/ HTTP/1.1
 Content-Type: application/json
-X-CSRFToken: 5yMPf1vIRrGoFaHLng7Qbgmo9y3AoF57
+X-CSRFToken: Eamur1SM3UAQoZl1H9MXSFvAv8hVNrR2
 
 {
-    "role": "PHA",
-    "email": "pharma5.sugriva@medicine.com",
-    "first_name": "Maha5",
-    "last_name": "Bali5",
-    "phone_number": "8785040547",
-    "password": "Pharma@1234",
-    "confirm_password": "Pharma@1234",
+    "role": "REC",
+    "email": "handsomearjun360@gmail.com",
+    "first_name": "Handsome",
+    "last_name": "Arjun",
+    "phone_number": "7838364587",
+    "password": "Recep@1234",
+    "confirm_password": "Recep@1234",
     "profile": {
         "gender": "M",
-        "license_number": "PHAS564-254KJ",
+        "license_number": "RECEPS564-254KJ",
         "qualification": "Something"
     }
 }
 
 ###
+
+POST http://localhost:8000/api/staff/verify-email/?token=eyJ1c2VyX2lkIjoiNTJiODg1YzEtYjlhZS00NDgxLWIzZTgtZGIxMmUyNTFlMGRmIn0:1xURC0:njBz3nJs7lV7onhRmy_kcJ6ngljBsJqyWN9ZbuqSzz8
+Content-Type: application/json
+X-CSRFToken: Eamur1SM3UAQoZl1H9MXSFvAv8hVNrR2
