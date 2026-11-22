@@ -52,18 +52,30 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     
 
 class LoginSerializer(serializers.Serializer):
-    email = serializers.EmailField(required=True, write_only=True)
+    identifier = serializers.CharField(required=True, write_only=True)
     password = serializers.CharField(required=True, write_only=True, style={"input_type": "password"})
 
     # for just testing purpose i am listing all email so that i can logging with selected email.
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    # def __init__(self, *args, **kwargs):
+    #     super().__init__(*args, **kwargs)
 
-        emails = User.objects.all().order_by("email").values_list("email", flat=True)
-        self.fields["email"] = serializers.ChoiceField(
-            choices=[(email, email) for email in emails],
-            required=True
-        )
+    #     emails = User.objects.all().order_by("email").values_list("email", flat=True)
+    #     self.fields["phone_or_email"] = serializers.ChoiceField(
+    #         choices=[(email, email) for email in emails],
+    #         required=True
+    #     )
+
+    def validate_identifier(self, value):
+        value = value.strip()
+
+        if len(value) == 10 and value.isdigit():
+            return f"+91-{value}"
+
+        if not value:
+            raise serializers.ValidationError(
+                "Email or phone number is required."
+            )
+        return value
 
 
 class ChangePasswordSerializer(serializers.Serializer):

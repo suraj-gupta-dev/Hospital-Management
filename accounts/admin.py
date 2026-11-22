@@ -5,7 +5,7 @@ from django.utils.translation import gettext_lazy as _
 from .models import (
     User, DoctorProfile, NurseProfile,
     PatientProfile, ReceptionistProfile, HospitalAdminProfile,
-    LabTechnicianProfile, CashierProfile
+    LabTechnicianProfile, CashierProfile, FailedLoginAttempt
 )
 
 
@@ -57,3 +57,4 @@ admin.site.register(ReceptionistProfile)
 admin.site.register(HospitalAdminProfile)
 admin.site.register(LabTechnicianProfile)
 admin.site.register(CashierProfile)
+admin.site.register(FailedLoginAttempt)

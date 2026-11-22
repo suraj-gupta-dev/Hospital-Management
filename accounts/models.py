@@ -23,7 +23,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         PATIENT        = "PAT", "Patient"
     user_id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
     email = models.EmailField(unique=True)
-    phone_number = models.CharField(max_length=12)
+    phone_number = models.CharField(max_length=14, unique=True)
     username = models.CharField(max_length=50, default="")
     role = models.CharField(choices=RoleChoices.choices, null=True)
 
@@ -312,7 +312,7 @@ class PatientUser(User):
 
 
 class FailedLoginAttempt(models.Model):
-    email = models.EmailField(unique=True)
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="login_attempt", null=True)
     failed_attempts = models.PositiveSmallIntegerField(default=0)
     locked_until = models.DateTimeField(null=True, blank=True)
     last_failed_at = models.DateTimeField(null=True, blank=True)
@@ -323,4 +323,4 @@ class FailedLoginAttempt(models.Model):
         return bool(self.locked_until and self.locked_until > timezone.now())
 
     def __str__(self):
-        return self.email
+        return f"Login attempts: {self.user.user_id}"

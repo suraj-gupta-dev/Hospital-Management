@@ -87,6 +87,10 @@ WSGI_APPLICATION = 'HospitalSys.wsgi.application'
 
 AUTH_USER_MODEL = "accounts.user"
 
+AUTHENTICATION_BACKENDS = [
+    "accounts.backends.CustomBackend",
+]
+
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 

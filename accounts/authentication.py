@@ -2,6 +2,10 @@ from datetime import timedelta
 from django.utils import timezone
 from django.contrib.auth import authenticate
 from django.db import transaction
+from django.db.models import Q
+
+from auditlogs.models import AuditLog
+from auditlogs.services import AuditLogsServices
 
 from .models import FailedLoginAttempt, User
 
@@ -10,24 +14,42 @@ MAX_FAILED_ATTEMPTS = 2
 LOCKOUT_DURATION = timedelta(minutes=15)
 
 
+
+def normalize_identifier(identifier):
+    """
+    Normalize an email or phone number.
+    """
+    identifier = identifier.strip()
+
+    if "@" in identifier:
+        email = User.objects.normalize_email(identifier)
+        return {"email": email}
+
+    return {"phone_number": identifier}
+
+
 @transaction.atomic
-def authenticate_with_lockout(email, password):
+def authenticate_with_lockout(request, identifier, password):
     """
     Authenticate a user and apply account lockout after
     MAX_FAILED_ATTEMPTS consecutive failed attempts.
 
     Returns: (user, is_locked)
     """
-    email = User.objects.normalize_email(email.strip())
+    dict_identifier = normalize_identifier(identifier)
+
+    user = User.objects.filter(**dict_identifier)
+
+    if not user:
+        return None, False
 
     # create or retrieve the tracking record
-    attempt, create = FailedLoginAttempt.objects.get_or_create(email=email)
+    attempt, created = FailedLoginAttempt.objects.get_or_create(user=user.first())
 
     # Lock this record while checking/updating its counter.
     attempt = FailedLoginAttempt.objects.select_for_update().get(
         pk=attempt.pk
     )
-
 
     # Reject login while the account is locked.
     if attempt.locked_until and attempt.locked_until >= timezone.now():
@@ -42,12 +64,19 @@ def authenticate_with_lockout(email, password):
         ])
 
     # Try normal Django authentication.
-    user = authenticate(email=email, password=password)
+    user = authenticate(identifier=identifier, password=password)
 
     if user is not None:
         # Successful login: clear the failure record.
         attempt.delete()
         return user, False
+
+    AuditLogsServices.create_audit_log(
+            request=request,
+            instance=user,
+            action=AuditLog.ActionChoices.FAILED_LOGIN,
+            description="Failed login attempt."
+        )
 
     # Failed login: increase the counter.
     attempt.failed_attempts += 1

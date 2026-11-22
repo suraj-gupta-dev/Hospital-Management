@@ -90,9 +90,9 @@ class LoginGenericAPIView(GenericAPIView):
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        email = serializer.validated_data["email"]
+        identifier = serializer.validated_data["identifier"]
         password = serializer.validated_data["password"]
-        user, is_locked = authenticate_with_lockout(email=email, password=password)
+        user, is_locked = authenticate_with_lockout(request=request, identifier=identifier, password=password)
 
         if is_locked:
             return Response({
@@ -100,21 +100,39 @@ class LoginGenericAPIView(GenericAPIView):
             }, status=status.HTTP_423_LOCKED
         )
         
-        if user is not None:
-            login(request, user)
-            AuditLogsServices.create_audit_log(
-                request=request,
-                actor=user,
-                action=AuditLog.ActionChoices.LOGIN,
-                description="User successfully logged in."
+        if user is None:
+            return Response(
+                {
+                    "status": "error",
+                    "message": "Invalid credentials or account not eligible to log in.",
+                },
+                status=status.HTTP_401_UNAUTHORIZED,
             )
-            return Response({"message": "Successfully logged in.", "email": email})
+        
+        login(request, user)
+
         AuditLogsServices.create_audit_log(
             request=request,
-            action=AuditLog.ActionChoices.FAILED_LOGIN,
-            description="Failed login attempt."
+            instance=user,
+            action=AuditLog.ActionChoices.LOGIN,
+            description="User successfully logged in."
         )
-        return Response({"error": "Invalid credential"}, status=status.HTTP_401_UNAUTHORIZED)
+
+        return Response(
+        {
+            "status": "success",
+            "message": "Successfully logged in.",
+            "data": {
+                "user_id": str(user.user_id),
+                "email": user.email,
+                "phone_number": user.phone_number,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "role": user.role,
+            },
+        },
+        status=status.HTTP_200_OK,
+    )
 
 
 class LogoutAPIView(APIView):
