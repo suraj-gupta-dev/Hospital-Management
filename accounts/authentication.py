@@ -10,7 +10,7 @@ from auditlogs.services import AuditLogsServices
 from .models import FailedLoginAttempt, User
 
 
-MAX_FAILED_ATTEMPTS = 2
+MAX_FAILED_ATTEMPTS = 50
 LOCKOUT_DURATION = timedelta(minutes=15)
 
 

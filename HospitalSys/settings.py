@@ -251,3 +251,5 @@ MAILERS = {
         },
     },
 }
+
+APPOINTMENT_BOOKING_WINDOW_DAYS = 7

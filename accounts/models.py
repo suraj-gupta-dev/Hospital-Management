@@ -38,6 +38,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    @property
+    def full_name(self):
+        return f"{self.first_name} {self.last_name}"
+
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["first_name", "last_name"]
 
@@ -111,7 +115,7 @@ class DoctorProfile(PrefixIDMixin, ProfileBaseModel):
     joining_date = models.DateField(null=True, blank=True)
 
     def __str__(self):
-        return self.user.email
+        return f"{self.user.email} - {self.doctor_id}"
 
 
 class NurseProfile(PrefixIDMixin, ProfileBaseModel):

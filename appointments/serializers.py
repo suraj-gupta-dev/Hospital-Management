@@ -63,26 +63,65 @@ class AppointmentSlotSerializer(serializers.ModelSerializer):
             if gap != self.SLOT_GAP:
                 raise serializers.ValidationError("Gap between 2 appointment slot should be 15.")
         return attrs
-    
 
-class AppointmentSerializer(serializers.ModelSerializer):
+
+class PatientAppointmentCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Appointment
         fields = [
+            "doctor",
+            "department",
+            "slot",
+            "appointment_date",
+            "appointment_type",
+            "reason",
+        ]
+
+
+class ReceptionistAppointmentCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Appointment
+        fields = [
+            "patient",
+            "doctor",
+            "department",
+            "slot",
+            "appointment_date",
+            "appointment_type",
+            "reason",
+        ]
+
+
+class RescheduleAppointmentSerializer(serializers.Serializer):
+    appointment_date = serializers.DateField()
+    slot = serializers.PrimaryKeyRelatedField(
+        queryset=AppointmentSlot.objects.filter(is_active=True)
+    )
+    
+
+class AppointmentSerializer(serializers.ModelSerializer):
+    patient_name = serializers.CharField(source="patient.user.full_name", read_only=True)
+    doctor_name = serializers.CharField(source="doctor.user.full_name", read_only=True)
+    slot_time = serializers.CharField(source="slot.appointment_time", read_only=True)
+    department_name = serializers.CharField(source="department.name", read_only=True)
+
+    class Meta:
+        model = Appointment
+        fields = [
+            "patient_name", "doctor_name",
             "appointment_number", "patient",
-            "doctor", "department",
-            "appointment_date", "slot",
+            "doctor", "department", "department_name",
+            "appointment_date", "slot",  "slot_time",
             "appointment_type", "status",
             "reason", "notes",
             "cancelled_at", "cancellation_reason",
         ]
-        read_only_fields = [ "appointment_number", "status", "cancelled_at", "cancellation_reason"]
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        request = self.context["request"]
-        if request and getattr(request.user, "role", None) == "PAT":
-            self.fields.pop("patient")
+        read_only_fields = [
+            "patient_name", "doctor_name", "slot_time",
+            "appointment_number", "status", "cancelled_at",
+            "cancellation_reason", "patient", "department_name",
+        ]
 
     def validate(self, attrs):
         department = attrs["department"]
@@ -125,4 +164,8 @@ class AppointmentSerializer(serializers.ModelSerializer):
         return attrs
 
 class CancelAppointmentSerializer(serializers.Serializer):
-    cancellation_reason = serializers.CharField()
+    cancellation_reason = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=1000,
+    )

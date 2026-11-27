@@ -1,15 +1,36 @@
 from rest_framework.permissions import BasePermission, SAFE_METHODS
 
 
-class IsDoctorReceptOrAdmin(BasePermission):
+
+
+class IsPatientOrReceptionist(BasePermission):
+    message = "Only patients and receptionists can perform this action."
+
     def has_permission(self, request, view):
         role = getattr(request.user, "role", None)
-        if role == "HA":
-            return True
+
+        return role in ["PAT", "REC"]
+
+
+class CanManageAppointment(BasePermission):
+    """
+    Patients can manage their own appointments.
+    Receptionists can manage appointments for all patients.
+    """
+
+    def has_object_permission(self, request, view, obj):
+        role = getattr(request.user, "role", None)
+
         if role == "REC":
-            return request.method in ["GET", "POST", "PUT", "PATCH"]
-        if role == "DOC":
-            return request.method in SAFE_METHODS
+            return True
+
         if role == "PAT":
-            return request.method in SAFE_METHODS or request.method == "POST"
+            patient_profile = getattr(request.user, "patient_profile", None)
+
+            return (
+                patient_profile is not None
+                and
+                obj.patient_id == patient_profile.pk
+            )
+
         return False

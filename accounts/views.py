@@ -366,7 +366,7 @@ class StaffEmailVerificationAPIView(APIView):
 
         except (signing.BadSignature, User.DoesNotExist, KeyError, TypeError):
             return Response({
-                "error": "Email verification is not required for patients."
+                "error": "Invalid or expired verification link."
             }, status=status.HTTP_400_BAD_REQUEST)
 
         # Patients do not require email verification.

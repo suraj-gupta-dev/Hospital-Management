@@ -1,6 +1,7 @@
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
+from django.core.exceptions import ValidationError
 
 from hospital.models import Department
 from accounts.models import DoctorProfile, PatientProfile
@@ -9,12 +10,6 @@ from .services.appointment import AppointmentServices
 
 
 
-
-class AppointmentSlot(models.Model):
-    appointment_time = models.TimeField()
-
-    def __str__(self):
-        return str(self.appointment_time)
 
 
 class DoctorSchedule(models.Model):
@@ -34,8 +29,37 @@ class DoctorSchedule(models.Model):
     end_time = models.TimeField()
     is_active = models.BooleanField(default=True)
 
+    def clean(self):
+        if self.slot_duration <= 0:
+            raise ValidationError({
+                "slot_duration": "Duration must be greater than zero."
+            })
+
+        if self.start_time >= self.end_time:
+            raise ValidationError({
+                "end_time": "End time must be after start time."
+            })
+
     def __str__(self):
         return f"{self.day_of_week}-{self.start_time}:{self.end_time}"
+
+
+class AppointmentSlot(models.Model):
+    schedule = models.ForeignKey(DoctorSchedule, on_delete=models.CASCADE, related_name="slots")
+    appointment_time = models.TimeField()
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["appointment_time"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["schedule", "appointment_time"],
+                name="unique_schedule_appointment_time",
+            )
+        ] 
+
+    def __str__(self):
+        return f"{self.schedule.doctor} - {self.appointment_time}"
 
 
 class Appointment(models.Model):

@@ -52,7 +52,14 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     
 
 class LoginSerializer(serializers.Serializer):
-    identifier = serializers.CharField(required=True, write_only=True)
+    # for just testing purpose i am listing all email so that i can logging with selected email.
+    identifier = serializers.SlugRelatedField(
+        queryset=User.objects.order_by("email"),
+        slug_field="email",
+        required=True,
+        write_only=True
+    )
+    # identifier = serializers.CharField(required=True, write_only=True)
     password = serializers.CharField(required=True, write_only=True, style={"input_type": "password"})
 
     # for just testing purpose i am listing all email so that i can logging with selected email.
@@ -66,6 +73,10 @@ class LoginSerializer(serializers.Serializer):
     #     )
 
     def validate_identifier(self, value):
+        """Only for testing purpose"""
+        value = value.email
+        print(value)
+        """-----------------"""
         value = value.strip()
 
         if len(value) == 10 and value.isdigit():
