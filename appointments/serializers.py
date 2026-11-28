@@ -63,9 +63,56 @@ class AppointmentSlotSerializer(serializers.ModelSerializer):
             if gap != self.SLOT_GAP:
                 raise serializers.ValidationError("Gap between 2 appointment slot should be 15.")
         return attrs
+    
+
+class AppointmentValidateMixin: 
+    def validate(self, attrs):
+            department = attrs["department"]
+            doctor = attrs["doctor"]
+            patient = (
+                attrs.get("patient")
+                or
+                self.context["request"].user.patient_profile
+            )
+                
+
+            # 1. Doctor → Department
+            is_assigned = StaffDepartment.objects.filter(
+                staff=doctor.user,
+                department=department,
+                is_active=True
+            )
+
+            if not is_assigned:
+                logger.error(f"{doctor} doesn't belong to {department}")
+                raise serializers.ValidationError({
+                    "department": (
+                        "This doctor is not assigned to the selected department."
+                    )
+                })
+
+            # 3. Check if there is a appointment already exist for same day.
+            have_appointment = Appointment.objects.filter(
+                patient=patient,
+                doctor=doctor,
+                department=department,
+                appointment_date=attrs["appointment_date"],
+            ).exclude(
+                status=Appointment.Status.CANCELLED
+            )
+
+            if have_appointment.exists():
+                logger.error(f"{patient} already have appointment with-{doctor}")
+                raise serializers.ValidationError({
+                    "slot": (
+                        "This patient already has an appointment "
+                        "at this time."
+                    )
+                })
+            return attrs
 
 
-class PatientAppointmentCreateSerializer(serializers.ModelSerializer):
+class PatientAppointmentCreateSerializer(AppointmentValidateMixin, serializers.ModelSerializer):
     class Meta:
         model = Appointment
         fields = [
@@ -78,7 +125,7 @@ class PatientAppointmentCreateSerializer(serializers.ModelSerializer):
         ]
 
 
-class ReceptionistAppointmentCreateSerializer(serializers.ModelSerializer):
+class ReceptionistAppointmentCreateSerializer(AppointmentValidateMixin, serializers.ModelSerializer):
     class Meta:
         model = Appointment
         fields = [
@@ -97,7 +144,7 @@ class RescheduleAppointmentSerializer(serializers.Serializer):
     slot = serializers.PrimaryKeyRelatedField(
         queryset=AppointmentSlot.objects.filter(is_active=True)
     )
-    
+
 
 class AppointmentSerializer(serializers.ModelSerializer):
     patient_name = serializers.CharField(source="patient.user.full_name", read_only=True)
@@ -123,45 +170,6 @@ class AppointmentSerializer(serializers.ModelSerializer):
             "cancellation_reason", "patient", "department_name",
         ]
 
-    def validate(self, attrs):
-        department = attrs["department"]
-        doctor = attrs["doctor"]
-        patient_profile = self.context.get("patient") 
-
-        # 1. Doctor → Department
-        is_assigned = StaffDepartment.objects.filter(
-            staff=doctor.user,
-            department=department,
-            is_active=True
-        )
-
-        if not is_assigned:
-            logger.error(f"{doctor} doesn't belong to {department}")
-            raise serializers.ValidationError({
-                "department": (
-                    "This doctor is not assigned to the selected department."
-                )
-            })
-
-        # 3. Check if there is a appointment already exist for same day.
-        have_appointment = Appointment.objects.filter(
-            patient = patient_profile,
-            doctor=doctor,
-            department=department,
-            appointment_date=attrs["appointment_date"],
-        ).exclude(
-            status=Appointment.Status.CANCELLED
-        )
-
-        if have_appointment.exists():
-            logger.error(f"{patient_profile} already have appointment with-{doctor}")
-            raise serializers.ValidationError({
-                "slot": (
-                    "This patient already has an appointment "
-                    "at this time."
-                )
-            })
-        return attrs
 
 class CancelAppointmentSerializer(serializers.Serializer):
     cancellation_reason = serializers.CharField(

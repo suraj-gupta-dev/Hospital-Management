@@ -1,5 +1,5 @@
 from django_filters import FilterSet, DateFilter
-from rest_framework.filters import BaseFilterBackend
+
 
 from .models import Appointment
 
@@ -15,8 +15,3 @@ class AppointmentFilter(FilterSet):
             "department": ["exact", "in"],
             "status": ["exact", "iexact", "in"]
         }
-
-
-class AvailableSlotFilterBackend(BaseFilterBackend):
-    def filter_queryset(self, request, queryset, view):
-        return super().filter_queryset(request, queryset, view)

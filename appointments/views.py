@@ -48,6 +48,7 @@ class AppointmentModelViewSet(ModelViewSet):
         )
     serializer_class = AppointmentSerializer
     permission_classes = [IsAuthenticated]
+    http_method_names = ["get", "post", "put", "patch", "head", "options"]
     filter_backends = [
         DjangoFilterBackend,
         SearchFilter,
@@ -100,10 +101,11 @@ class AppointmentModelViewSet(ModelViewSet):
         return AppointmentSerializer
 
     def get_permissions(self):
-        if self.action in ["create", "reschedule", "cancel"]:
+        if self.action == "create":
             return [
                 IsAuthenticated(),
-                IsPatientOrReceptionist()
+                IsPatientOrReceptionist(),
+
             ]
 
         if self.action in ["reschedule", "cancel"]:
@@ -132,12 +134,12 @@ class AppointmentModelViewSet(ModelViewSet):
         if role == "PAT":
             patient = getattr(request.user, "patient_profile", None)
 
-        if patient is None:
-            raise ValidationError({
-                    "patient": "Patient profile not found."
-            })
+            if patient is None:
+                raise ValidationError({
+                        "patient": "Patient profile not found."
+                })
 
-        validated_data["patient"] = patient
+            validated_data["patient"] = patient
 
         try:
             appointment = AppointmentServices.create_appointment(
@@ -245,7 +247,7 @@ class AppointmentModelViewSet(ModelViewSet):
         """
         schedule_id is not an explicitly declared field in your Django model.
         It is an automatically generated attribute by Django ORM for a ForeignKey field.
-        
+
         slot.schedule	The related DoctorSchedule object
         slot.schedule_id	The primary key of that DoctorSchedule object
         """
@@ -285,9 +287,7 @@ class AppointmentModelViewSet(ModelViewSet):
                 )
             )
         except ValidationError as exc:
-            raise ValidationError({
-                "detail": str(exc)
-            })
+            raise ValidationError(exc.detail)
         
         response_serializer = AppointmentSerializer(
             updated_appointment,

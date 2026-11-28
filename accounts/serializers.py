@@ -73,10 +73,11 @@ class LoginSerializer(serializers.Serializer):
     #     )
 
     def validate_identifier(self, value):
-        """Only for testing purpose"""
+        """Only for testing purpose. remove this if remove the identifier SlugRelatedField."""
         value = value.email
         print(value)
-        """-----------------"""
+        """======================"""
+        
         value = value.strip()
 
         if len(value) == 10 and value.isdigit():

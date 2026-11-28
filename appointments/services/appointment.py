@@ -141,7 +141,7 @@ class AppointmentServices:
         appointment = (
             Appointment.objects
             .select_for_update()
-            .prefetch_related("doctor", "slot", "appointment_date")
+            .prefetch_related("doctor", "slot", "patient")
             .get(appointment_number=appointment_number)
         )
 
@@ -168,7 +168,7 @@ class AppointmentServices:
 
         appointment.appointment_date = new_date
         appointment.slot = new_slot
-        appointment.save(updated_fields=["appointment_date", "slot"])
+        appointment.save(update_fields=["appointment_date", "slot"])
 
         return appointment
 
